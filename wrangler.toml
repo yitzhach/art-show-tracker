@@ -1,0 +1,7 @@
+name = "art-show-tracker"
+compatibility_date = "2026-09-01"
+
+# Serves tracker/ as static files. No build step: tracker/ is plain
+# HTML/JS/CSS (see tracker's own CLAUDE.md) — this Worker just hosts it.
+[assets]
+directory = "tracker"
