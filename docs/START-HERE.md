@@ -364,7 +364,7 @@ cd worker && npm install && cd ..                                     # once
 python3 -m http.server 8765          # leave running
 node build/browser-tests.cjs         # 79 — model, drawer, provenance, data hygiene,
                                      #      geocode, tax guard rails, fees, weather, version
-node build/ledger-view-tests.cjs     # 34 — details/link split, badges, lenses,
+node build/ledger-view-tests.cjs     # 35 — details/link split, badges, lenses,
                                      #      hand-added shows on All shows
 node build/calendar-tests.cjs        # 77 — grid, lane packing, clashes, day
                                      #      layout, ics, layers, hearts, the
@@ -389,12 +389,10 @@ cd worker && npm test                # 45 — API; manages its own worker
 python3 build/build_fit_data.py --selftest   # 11 — the date rules themselves
 ```
 
-As of 2026-09-26: **77/79 / 34 / 77 / 26 / 32 / 102 / 33 / 20 / 11 / 11**
-(worker suite not re-run — nothing in `worker/` changed). The two browser
-failures predate this session and are date-driven: "Winter Park ranks higher
-for cheap prints" (the show is now closed and not in the top list) and "a near
-show says it is the real forecast" (the weather stub vs. today's date). Fix
-them next; neither is a feature bug that was introduced here.
+All green as of 2026-09-26: **79 / 35 / 77 / 26 / 32 / 102 / 33 / 20 / 11 / 11**
+(worker suite not re-run — nothing in `worker/` changed). `browser-tests.cjs`
+pins the page clock to 2026-09-05 because several checks name real shows;
+move that date forward when the catalogue moves to a new season.
 
 Two things worth knowing about the tests:
 
@@ -451,8 +449,7 @@ grade of it).
   build them as a `dataset`-grade build step, like the geocode.
 
 **Next up:** Phase 6 is blocked on the Worker being deployed and ~20 members;
-Phase 7 on saved ZAPP pages. So the unblocked work is: the two date-driven
-browser test failures, the Dinero link (idea 28, below), road distances in the
+Phase 7 on saved ZAPP pages. So the unblocked work is: the Dinero link (idea 28, below), road distances in the
 season plan, and image sets (21) once the Worker is live.
 
 **§7 Stages 1–4 are shipped.** Sales are now individual rows, so the mix by

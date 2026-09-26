@@ -22,8 +22,10 @@ file. What changed:
 - **Phase 5, idea 17 shipped — the season plan** (`tracker/route.js`, panel
   on the ledger). Days between shows, straight-line miles as a floor, open
   weekends, judged only against the artist's own daily mileage limit.
-- **Still open:** demographics (3) and tourism (4) need web egress; two
-  date-driven browser checks fail and predate this session; the Worker is
+- **Follow-up fixes:** a show already in the ledger no longer vanishes from
+  All shows when its application deadline passes (ArtiGras did). The two
+  date-rotted browser checks now run against a pinned clock (2026-09-05).
+- **Still open:** demographics (3) and tourism (4) need web egress; the Worker is
   still undeployed (Phase 6); the Dinero link (idea 28).
 
 ---

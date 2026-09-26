@@ -52,6 +52,11 @@ function check(name, pass, detail) {
   });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
 
+  /* Pin "today" for the page. Several checks name real shows (Bar Harbor's
+     forecast window, Winter Park's open deadline) and went red on their own
+     as the calendar moved past them. Only Date is frozen — timers still run.
+     Move this forward when the catalogue moves to a new season. */
+  await page.clock.setFixedTime(new Date('2026-09-05T12:00:00'));
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForTimeout(600);
 

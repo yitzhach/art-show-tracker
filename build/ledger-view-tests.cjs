@@ -242,6 +242,17 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
     window.ASTCatalogue.all().filter(r => r.name === 'Zzyzx Hand Typed Fair').length);
   check('adopting is idempotent across reloads', copies === 1, String(copies));
 
+  /* A show already in the ledger must not vanish from All shows the day its
+     application deadline passes (ArtiGras did, under the default filter). */
+  const kept = await p.evaluate(() => {
+    const C = window.ASTCatalogue;
+    const rows = [{ id: 'a', name: 'In ledger', applyBy: '2000-01-01', addedShowId: 'x' },
+                  { id: 'b', name: 'Not in ledger', applyBy: '2000-01-01', addedShowId: '' }];
+    return C.query(rows, { deadline: 'open' }).map(r => r.id);
+  });
+  check('open-deadline filter keeps shows already in the ledger',
+        JSON.stringify(kept) === '["a"]', JSON.stringify(kept));
+
   /* ---- Dark mode must not flash white between pages ----------------------
      data-theme is applied by an inline script in <head>. Before that existed
      Theme.init() ran after the body had painted with the light :root

@@ -251,7 +251,9 @@ window.ASTCatalogue = (function () {
       if (q.added === 'only' && !r.addedShowId) return false;
       /* A.today() is a Date, not an ISO string, so ask daysUntil rather than
          comparing a string against it. Today itself still counts as open. */
-      if (q.deadline === 'open' && r.applyBy && A.daysUntil(r.applyBy) < 0) return false;
+      /* A show already in your ledger is yours whatever its deadline did —
+         hiding it here made shows vanish the day applications closed. */
+      if (q.deadline === 'open' && !r.addedShowId && r.applyBy && A.daysUntil(r.applyBy) < 0) return false;
       if (q.from && r.startDate && r.startDate < q.from) return false;
       if (q.to && r.startDate && r.startDate > q.to) return false;
       if (q.maxFee != null && r.fee != null && r.fee > q.maxFee) return false;
