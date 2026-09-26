@@ -114,7 +114,7 @@ node build/contacts-tests.cjs
 node build/route-tests.cjs                  # pure node, no server
 cd worker && npm test
 ```
-Deploy: push to `main`; Pages rebuilds in ~1 min.
+Deploy: push to `main`; Cloudflare (root `wrangler.toml`) serves `tracker/`.
 
 ## Gotchas
 - Page looks stale? Check `version.json`'s `commit` against `main` — almost always
@@ -139,5 +139,4 @@ Deploy: push to `main`; Pages rebuilds in ~1 min.
 - Write to `build/catalogue-source.json` — pristine export, read-only.
 - Split the fee parser on whitespace runs: gains 1 show, corrupts 6
   (`zapp-14601` $375→$75). Tried, reverted.
-- Switch Pages to a branch source — it silently stops `main` publishing.
 - Put counts or stats in this file. They rot, and it loads every session.

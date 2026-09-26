@@ -46,7 +46,7 @@ v2026.09.07-1456 · bac2d25 · published Sep 7, 2026, 2:58 PM · details
 The same thing lives at a stable URL, so you can check without loading the app
 (which is the thing under suspicion):
 
-**https://yitzhach.github.io/newTEST/tracker/version.json**
+`version.json` at the site root (on Cloudflare, the `tracker/` folder is the root).
 
 | field | meaning |
 |---|---|
@@ -68,21 +68,17 @@ If a change still seems missing, compare `version.json`'s `commit` against
 
 ## Deploying
 
-> **2026-09-26: the GitHub Pages deploy fails on every push** with
-> `Get Pages site failed ... Not Found`. Pages is not enabled on
-> `yitzhach/art-show-tracker` (the site used to live at `yitzhach/newTEST`).
-> Fix, once, in the repo's Settings → Pages → Build and deployment →
-> Source: **GitHub Actions**. Not a code problem; the workflow is fine.
+**The site is hosted on Cloudflare** (Workers static assets). `wrangler.toml`
+at the repo root serves `tracker/` as-is, with no build step. Cloudflare's Git
+integration rebuilds on every push to `main`.
 
-Push to `main`. `.github/workflows/static.yml` uploads the repo and deploys it
-through the Pages **Actions** source. ~1 minute, then refresh.
+The old GitHub Pages workflow (`.github/workflows/static.yml`) was deleted on
+2026-09-26: Pages was never enabled on this repo, so it failed on every push.
 
-> **Do not switch Pages to a branch source.** It was tried in order to give
-> every PR a preview URL at `/pr-preview/pr-<n>/`, and it worked — but a Pages
-> site has exactly one source, so it silently stopped `main` from publishing
-> until the repo owner changed a setting by hand. Reverted. The machinery is in
-> git history at `2a7e6bf` if it is ever wanted, and it needs that settings
-> change made deliberately first.
+**Known gap:** that workflow was what wrote `commit` / `deployedAt` into
+`version.json`. Nothing writes them now, so the version stamp reads "not
+published yet" even when the page is live. Use `version` / `assetVersion`
+to tell builds apart until Cloudflare's build stamps the commit.
 
 ---
 
