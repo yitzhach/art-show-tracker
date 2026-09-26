@@ -18,6 +18,11 @@
    3. ONLY SHOWS YOU MIGHT ACTUALLY BE AT. Accepted, applied and wait-listed
       shows make the plan; interested, declined and not-applying do not, and
       neither do hidden shows or alternates. The page names the rule.
+
+   Road miles, where the routing service answers, replace the floor: then a
+   leg can be judged as fitting, not only as too far. They come from OSRM
+   over OpenStreetMap — a routing estimate for a car, not a van with a
+   trailer — and every leg says which kind of distance it is showing.
    ==========================================================================*/
 var ASTRoute = (function () {
   'use strict';
@@ -45,6 +50,46 @@ var ASTRoute = (function () {
     return 2 * EARTH_MI * Math.asin(Math.min(1, Math.sqrt(h)));
   }
 
+  /** Cache key for one leg, coordinates rounded to ~11 m. */
+  function pairKey(a, b) {
+    if (!hasCoords(a) || !hasCoords(b)) return '';
+    return [a.lat, a.lng, b.lat, b.lng].map(function (n) { return n.toFixed(4); }).join(',');
+  }
+
+  var METERS_PER_MILE = 1609.344;
+  var ROAD_URL = 'https://router.project-osrm.org/route/v1/driving/';
+
+  /**
+   * Road miles for one leg, or null when the router cannot be reached or
+   * answers nonsense. Cached through `opts.cache` ({get, set}) so each leg is
+   * asked once. Null is never turned into a number: the leg simply keeps
+   * its straight-line floor.
+   */
+  function fetchRoadMiles(a, b, opts) {
+    opts = opts || {};
+    var key = pairKey(a, b);
+    if (!key) return Promise.resolve(null);
+    var cache = opts.cache;
+    var hit = cache && cache.get(key);
+    if (typeof hit === 'number') return Promise.resolve(hit);
+    if (typeof fetch !== 'function') return Promise.resolve(null);
+    var url = (opts.endpoint || ROAD_URL) + a.lng + ',' + a.lat + ';' + b.lng + ',' + b.lat +
+      '?overview=false';
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, opts.timeoutMs || 9000);
+    return fetch(url, ctl ? { signal: ctl.signal } : undefined)
+      .then(function (res) { if (!res.ok) throw new Error('router ' + res.status); return res.json(); })
+      .then(function (data) {
+        var m = data && data.routes && data.routes[0] && data.routes[0].distance;
+        if (typeof m !== 'number' || !isFinite(m) || m < 0) return null;
+        var miles = m / METERS_PER_MILE;
+        if (cache) cache.set(key, miles);
+        return miles;
+      })
+      .catch(function () { return null; })
+      .then(function (v) { clearTimeout(timer); return v; });
+  }
+
   /** The shows the plan is built from, in date order. */
   function planned(shows) {
     return (shows || []).filter(function (s) {
@@ -60,9 +105,12 @@ var ASTRoute = (function () {
    *
    * verdict:
    *   'overlap'            the dates collide — you cannot be at both
-   *   'too-far'            even the straight line is beyond your limit
-   *   'fits-straight-line' the floor fits; road miles will be more
+   *   'too-far'            beyond your limit (road miles, or even the straight line)
+   *   'fits'               road miles are within your limit
+   *   'fits-straight-line' no road miles yet; the floor fits, the road will be more
    *   'not-judged'         no limit set, or a stop has no coordinates
+   *
+   * opts.roadMiles: { pairKey: miles } from fetchRoadMiles, where known.
    */
   function legs(shows, opts) {
     opts = opts || {};
@@ -75,6 +123,8 @@ var ASTRoute = (function () {
       var end = parse(a.endDate) != null ? parse(a.endDate) : parse(a.startDate);
       var gap = Math.round((parse(b.startDate) - end) / DAY) - 1;
       var miles = straightMiles(a, b);
+      var road = opts.roadMiles ? opts.roadMiles[pairKey(a, b)] : null;
+      if (typeof road !== 'number') road = null;
       /* Travel days: the days between, plus the evening of teardown counted
          as nothing. A back-to-back weekend (gap 4) gives four days. A gap of
          zero still allows the night drive some artists do, so it counts as
@@ -83,9 +133,11 @@ var ASTRoute = (function () {
       var verdict;
       if (gap < 0) verdict = 'overlap';
       else if (limit == null || miles == null) verdict = 'not-judged';
+      else if (road != null) verdict = road > limit * days ? 'too-far' : 'fits';
       else if (miles > limit * days) verdict = 'too-far';
       else verdict = 'fits-straight-line';
-      out.push({ from: a, to: b, daysBetween: gap, straightMiles: miles,
+      out.push({ from: a, to: b, key: pairKey(a, b), daysBetween: gap, straightMiles: miles,
+                 roadMiles: road, distanceSource: road != null ? 'road' : (miles != null ? 'straight' : null),
                  travelDays: days, verdict: verdict });
     }
     return out;
@@ -121,12 +173,18 @@ var ASTRoute = (function () {
   /** Totals, with the straight-line caveat built into the field name. */
   function summary(legList) {
     var known = legList.filter(function (l) { return l.straightMiles != null; });
+    var road = legList.filter(function (l) { return l.roadMiles != null; });
     var count = function (v) { return legList.filter(function (l) { return l.verdict === v; }).length; };
     return {
       legs: legList.length,
       atLeastMiles: known.length
         ? known.reduce(function (t, l) { return t + l.straightMiles; }, 0) : null,
       milesComplete: known.length === legList.length,
+      /* Road total only when EVERY leg has road miles — a sum of some road
+         legs and some straight lines is neither figure. */
+      roadMiles: road.length && road.length === legList.length
+        ? road.reduce(function (t, l) { return t + l.roadMiles; }, 0) : null,
+      roadLegs: road.length,
       overlap: count('overlap'),
       tooFar: count('too-far'),
       notJudged: count('not-judged')
@@ -136,6 +194,8 @@ var ASTRoute = (function () {
   return {
     PLANNED: PLANNED,
     straightMiles: straightMiles,
+    pairKey: pairKey,
+    fetchRoadMiles: fetchRoadMiles,
     planned: planned,
     legs: legs,
     deadWeekends: deadWeekends,

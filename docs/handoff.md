@@ -25,6 +25,9 @@ file. What changed:
 - **Follow-up fixes:** a show already in the ledger no longer vanishes from
   All shows when its application deadline passes (ArtiGras did). The two
   date-rotted browser checks now run against a pinned clock (2026-09-05).
+- **Road miles in the season plan** (OSRM, cached per leg, straight-line
+  fallback labelled). **GitHub Pages is not enabled on this repo**, so the
+  deploy workflow fails on every push — see START-HERE "Deploying".
 - **Still open:** demographics (3) and tourism (4) need web egress; the Worker is
   still undeployed (Phase 6); the Dinero link (idea 28).
 

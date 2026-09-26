@@ -68,6 +68,12 @@ If a change still seems missing, compare `version.json`'s `commit` against
 
 ## Deploying
 
+> **2026-09-26: the GitHub Pages deploy fails on every push** with
+> `Get Pages site failed ... Not Found`. Pages is not enabled on
+> `yitzhach/art-show-tracker` (the site used to live at `yitzhach/newTEST`).
+> Fix, once, in the repo's Settings → Pages → Build and deployment →
+> Source: **GitHub Actions**. Not a code problem; the workflow is fine.
+
 Push to `main`. `.github/workflows/static.yml` uploads the repo and deploys it
 through the Pages **Actions** source. ~1 minute, then refresh.
 
@@ -384,12 +390,12 @@ node build/jury-tests.cjs             # 33 — mock jury: the money rule, the
                                      #      missing plumbing, score-is-not-odds
 node build/contacts-tests.cjs         # 20 — Stage 4: contacts stay local,
                                      #      consent, follow-ups, export, debrief
-node build/route-tests.cjs            # 11 — Phase 5 season plan (no server)
+node build/route-tests.cjs            # 17 — Phase 5 season plan + road miles (no server)
 cd worker && npm test                # 45 — API; manages its own worker
 python3 build/build_fit_data.py --selftest   # 11 — the date rules themselves
 ```
 
-All green as of 2026-09-26: **79 / 35 / 77 / 26 / 32 / 102 / 33 / 20 / 11 / 11**
+All green as of 2026-09-26: **79 / 35 / 77 / 26 / 32 / 102 / 33 / 20 / 17 / 11**
 (worker suite not re-run — nothing in `worker/` changed). `browser-tests.cjs`
 pins the page clock to 2026-09-05 because several checks name real shows;
 move that date forward when the catalogue moves to a new season.
@@ -442,15 +448,17 @@ grade of it).
   under the map). Legs between accepted/applied/wait-listed shows, days
   between, straight-line miles as a *floor*, open weekends. Legs are judged
   only against a daily mileage limit the artist sets; a straight line can
-  prove a leg too far, never that it fits. Road distance (OSRM, already used
-  by the map line) is the obvious upgrade.
+  prove a leg too far, never that it fits. **Road miles added:** each leg asks
+  OSRM once (cached in `artShowTracker.roadmiles`); with road miles a leg can
+  be judged as fitting. A leg the router has not answered keeps the straight
+  line, labelled, and the season total only switches to road miles when every
+  leg has them. OSRM is a car estimate — the page says a loaded van is slower.
 - **Not done from Phase 5:** demographics (3) and tourism (4) need Census /
   tourism data this sandbox cannot fetch. A session with web egress should
   build them as a `dataset`-grade build step, like the geocode.
 
 **Next up:** Phase 6 is blocked on the Worker being deployed and ~20 members;
-Phase 7 on saved ZAPP pages. So the unblocked work is: the Dinero link (idea 28, below), road distances in the
-season plan, and image sets (21) once the Worker is live.
+Phase 7 on saved ZAPP pages. So the unblocked work is: the Dinero link (idea 28, below), and image sets (21) once the Worker is live.
 
 **§7 Stages 1–4 are shipped.** Sales are now individual rows, so the mix by
 price band and by state is real data rather than an editorial guess. What it

@@ -48,5 +48,28 @@ check('a one-show season has no dead weekends', R.deadWeekends([naples]).length 
 const sum = R.summary(R.legs([naples, miami, show('nowhere', '2027-02-01', '2027-02-01')]));
 check('summary says when miles are incomplete', sum.milesComplete === false && sum.atLeastMiles > 0, JSON.stringify(sum));
 
+// ---- road miles ---------------------------------------------------------
+const key = R.pairKey(naples, miami);
+legs = R.legs([naples, miami], { maxMilesPerDay: 150, roadMiles: { [key]: 125 } });
+check('with road miles a leg can be judged as fitting', legs[0].verdict === 'fits' && legs[0].distanceSource === 'road');
+legs = R.legs([naples, miami], { maxMilesPerDay: 20, roadMiles: { [key]: 125 } });
+check('road miles beyond the limit are too far', legs[0].verdict === 'too-far');
+const mixed = R.summary(R.legs([naples, miami, denver], { roadMiles: { [key]: 125 } }));
+check('no road total while only some legs have road miles', mixed.roadMiles === null && mixed.roadLegs === 1, JSON.stringify(mixed));
+
+(async () => {
+  const store = {}; const cache = { get: k => store[k], set: (k, v) => { store[k] = v; } };
+  let calls = 0;
+  global.fetch = async () => { calls++; return { ok: true, json: async () => ({ routes: [{ distance: 201168 }] }) }; };
+  const mi1 = await R.fetchRoadMiles(naples, miami, { cache });
+  const mi2 = await R.fetchRoadMiles(naples, miami, { cache });
+  check('router metres become miles, and a leg is asked once', Math.round(mi1) === 125 && mi2 === mi1 && calls === 1, mi1 + ' / ' + calls);
+  global.fetch = async () => { throw new Error('blocked'); };
+  check('an unreachable router gives null, never a number',
+        (await R.fetchRoadMiles(naples, denver, { cache })) === null);
+  global.fetch = async () => ({ ok: true, json: async () => ({ routes: [] }) });
+  check('a malformed answer gives null', (await R.fetchRoadMiles(miami, denver, { cache })) === null);
+
 console.log('\n' + pass + '/' + (pass + fails.length) + ' checks passed');
 if (fails.length) process.exit(1);
+})();

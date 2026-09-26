@@ -31,11 +31,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
       referrerpolicy="no-referrer">
-<link rel="stylesheet" href="app.css?v=51a85f5b">
+<link rel="stylesheet" href="app.css?v=6df71b01">
 <!-- The ledger shows the same fit/intel drawer the catalogue does, so it needs
      the same styles. Scoped to .idr/.fitchip/.prov and its own tokens; it adds
      to app.css rather than competing with it. -->
-<link rel="stylesheet" href="intel.css?v=51a85f5b">
+<link rel="stylesheet" href="intel.css?v=6df71b01">
 </head>
 <body>
 <!-- ==========================================================================
@@ -708,27 +708,27 @@
      sandbox and an unverified hash would break the map outright. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
         referrerpolicy="no-referrer"></script>
-<script src="core.js?v=51a85f5b"></script>
-<script src="nav.js?v=51a85f5b"></script>
-<script src="version.js?v=51a85f5b"></script>
-<script src="map.js?v=51a85f5b"></script>
-<script src="route.js?v=51a85f5b"></script>
+<script src="core.js?v=6df71b01"></script>
+<script src="nav.js?v=6df71b01"></script>
+<script src="version.js?v=6df71b01"></script>
+<script src="map.js?v=6df71b01"></script>
+<script src="route.js?v=6df71b01"></script>
 <!-- The fit/intel layer, so a show in the ledger opens the same breakdown
      it does in the catalogue. weather.js and salestax.js are optional to
      intel-ui.js, but without them the drawer silently loses two panels,
      which is worse than carrying two small files. -->
-<script src="fit.js?v=51a85f5b"></script>
-<script src="pipeline.js?v=51a85f5b"></script>
-<script src="intel.js?v=51a85f5b"></script>
-<script src="members.js?v=51a85f5b"></script>
-<script src="weather.js?v=51a85f5b"></script>
-<script src="salestax.js?v=51a85f5b"></script>
-<script src="intel-ui.js?v=51a85f5b"></script>
-<script src="store-supabase.js?v=51a85f5b"></script>
-<script src="import.js?v=51a85f5b"></script>
-<script src="import-ui.js?v=51a85f5b"></script>
-<script src="share.js?v=51a85f5b"></script>
-<script src="share-ui.js?v=51a85f5b"></script>
+<script src="fit.js?v=6df71b01"></script>
+<script src="pipeline.js?v=6df71b01"></script>
+<script src="intel.js?v=6df71b01"></script>
+<script src="members.js?v=6df71b01"></script>
+<script src="weather.js?v=6df71b01"></script>
+<script src="salestax.js?v=6df71b01"></script>
+<script src="intel-ui.js?v=6df71b01"></script>
+<script src="store-supabase.js?v=6df71b01"></script>
+<script src="import.js?v=6df71b01"></script>
+<script src="import-ui.js?v=6df71b01"></script>
+<script src="share.js?v=6df71b01"></script>
+<script src="share-ui.js?v=6df71b01"></script>
 <script type="module">
 /* ==========================================================================
    1-5. SHARED CORE
@@ -1382,28 +1382,50 @@ function planLimit() {
   const n = Number(Settings.getLayout().maxMilesPerDay);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
+/* Road miles per leg, from the router, cached on the device. A leg the
+   router has not answered keeps its straight-line floor. */
+const ROAD_MI_KEY = 'artShowTracker.roadmiles';
+const roadMiles = (() => { try { return JSON.parse(localStorage.getItem(ROAD_MI_KEY)) || {}; } catch (_) { return {}; } })();
+const roadAsked = new Set();
+const roadCache = {
+  get: k => roadMiles[k],
+  set: (k, v) => { roadMiles[k] = v; try { localStorage.setItem(ROAD_MI_KEY, JSON.stringify(roadMiles)); } catch (_) {} }
+};
+function askRoads(legs) {
+  const R = window.ASTRoute;
+  const todo = legs.filter(l => l.key && roadMiles[l.key] == null && !roadAsked.has(l.key));
+  if (!todo.length) return;
+  todo.forEach(l => roadAsked.add(l.key));
+  Promise.all(todo.map(l => R.fetchRoadMiles(l.from, l.to, { cache: roadCache })))
+    .then(got => { if (got.some(v => v != null)) renderPlan(); });
+}
 function renderPlan() {
   const R = window.ASTRoute;
   if (!R || !$('#planPanel')) return;
   const limit = planLimit();
   if (document.activeElement !== $('#planLimit')) $('#planLimit').value = limit == null ? '' : String(limit);
-  const legs = R.legs(state.shows, { maxMilesPerDay: limit });
+  const legs = R.legs(state.shows, { maxMilesPerDay: limit, roadMiles });
+  askRoads(legs);
   const sum = R.summary(legs);
   const mi = n => Math.round(n).toLocaleString() + ' mi';
   $('#planRule').textContent = 'Built from accepted, applied and wait-listed shows, in date order ' +
-    '(hidden shows and alternates left out). Distances are straight lines \u2014 the road is always ' +
-    'longer, so a leg marked too far is too far, but one that fits may still not.' +
+    '(hidden shows and alternates left out). Road miles come from OpenStreetMap routing ' +
+    '(a car estimate \u2014 a loaded van is slower). Where the router has not answered, the leg shows ' +
+    'the straight line instead, which is a floor: the road is always longer.' +
     (limit == null ? ' Set your daily limit to have legs judged.' : '');
   const VERDICT = {
     'overlap': ['plan-bad', 'Dates overlap \u2014 you cannot do both'],
     'too-far': ['plan-bad', 'Too far even in a straight line'],
-    'fits-straight-line': ['plan-ok', 'Straight line fits; road miles will be more'],
+    'fits': ['plan-ok', 'Fits your daily limit by road'],
+    'fits-straight-line': ['plan-ok', 'Straight line fits; road miles not known yet'],
     'not-judged': ['plan-na', 'Not judged']
   };
   $('#planLegs').innerHTML = legs.map(l => {
     const v = VERDICT[l.verdict];
     const bits = [
-      l.straightMiles == null ? 'distance not known (no coordinates)' : 'at least ' + mi(l.straightMiles),
+      l.roadMiles != null ? mi(l.roadMiles) + ' by road'
+        : l.straightMiles == null ? 'distance not known (no coordinates)'
+        : 'at least ' + mi(l.straightMiles) + ' (straight line)',
       l.daysBetween < 0 ? 'overlapping dates'
         : l.daysBetween + ' day' + (l.daysBetween === 1 ? '' : 's') + ' between'
     ];
@@ -1414,8 +1436,11 @@ function renderPlan() {
   $('#planSummary').textContent = !legs.length
     ? 'Needs at least two accepted, applied or wait-listed shows with dates.'
     : sum.legs + ' leg' + (sum.legs === 1 ? '' : 's') +
-      (sum.atLeastMiles != null ? ', at least ' + mi(sum.atLeastMiles) + ' in straight lines' +
-        (sum.milesComplete ? '' : ' across the legs with coordinates') : '') + '.';
+      (sum.roadMiles != null ? ', ' + mi(sum.roadMiles) + ' by road'
+      : sum.atLeastMiles != null ? ', at least ' + mi(sum.atLeastMiles) + ' in straight lines' +
+        (sum.milesComplete ? '' : ' across the legs with coordinates') +
+        (sum.roadLegs ? ' (' + sum.roadLegs + ' of ' + sum.legs + ' legs have road miles so far)' : '')
+      : '') + '.';
   const dead = R.deadWeekends(state.shows);
   $('#planDead').innerHTML = legs.length
     ? '<div class="label">Open weekends in the season</div>' +
