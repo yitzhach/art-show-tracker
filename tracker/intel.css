@@ -587,3 +587,12 @@ body.idr-open { overflow:hidden; }
 .fu-row .btn-mini { flex:none; }
 #fuDue .label, #fuUpcoming .label { margin-top:10px; }
 @media (max-width: 900px) { .ct-privacy { padding:10px 16px 0; } }
+
+/* Phase 5 — the season plan panel on the ledger. */
+.plan-legs { list-style:none; margin:10px 0 0; padding:0; }
+.plan-leg { padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.plan-leg:last-child { border-bottom:0; }
+.plan-v { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; margin-top:4px; }
+.plan-bad { color:var(--danger, #b3261e); }
+.plan-ok { color:var(--muted); }
+.plan-na { color:var(--muted); font-style:italic; font-weight:400; text-transform:none; letter-spacing:0; }

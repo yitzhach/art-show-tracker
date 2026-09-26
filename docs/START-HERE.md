@@ -24,7 +24,7 @@ commands or the rules. Keep it this short:
 > Don't re-read the codebase — open only the files you're changing, and only
 > open `docs/build-phases.md` or `docs/handoff.md` if the task needs them.
 >
-> Before finishing: run the nine suites, then commit, push and merge to `main`.
+> Before finishing: run the eleven suites, then commit, push and merge to `main`.
 
 Add a line naming a file or feature if you already know where the work lives —
 that saves a search. Everything else is already loaded.
@@ -115,7 +115,10 @@ straight to with `browse.html#hearted`), and it draws on the calendar's own
 Hearted layer without needing the whole catalogue switched on. Hearts are
 stored per catalogue record in `artShowTracker.catalogue`, so a show added to
 the ledger stays hearted and a re-import never costs you your picks. A
-hand-added show has no catalogue record and therefore cannot be hearted.
+hand-added show used to have no catalogue record and so never listed on All
+shows at all; `ASTCatalogue.adoptLedger` now links it — to the shipped record
+when exactly one has the same name (years and "Nth Annual" ignored), otherwise
+to a new custom record tagged **yours** — so it lists, hearts and sorts.
 
 **The application pipeline is a child collection, not fields on a show.**
 A show's `status` is where it stands now; an application is what you *did*, and
@@ -352,7 +355,7 @@ written.
 
 ---
 
-## The nine suites — run all of them before pushing
+## The eleven suites — run all of them before pushing
 
 ```bash
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-save playwright   # once
@@ -361,7 +364,8 @@ cd worker && npm install && cd ..                                     # once
 python3 -m http.server 8765          # leave running
 node build/browser-tests.cjs         # 79 — model, drawer, provenance, data hygiene,
                                      #      geocode, tax guard rails, fees, weather, version
-node build/ledger-view-tests.cjs     # 31 — details/link split, badges, lenses
+node build/ledger-view-tests.cjs     # 34 — details/link split, badges, lenses,
+                                     #      hand-added shows on All shows
 node build/calendar-tests.cjs        # 77 — grid, lane packing, clashes, day
                                      #      layout, ics, layers, hearts, the
                                      #      time picker, the stub rules
@@ -378,11 +382,19 @@ node build/expense-tests.cjs          # 102 — the expense log, mileage, landed
                                      #      the phone layout, the page menu
 node build/jury-tests.cjs             # 33 — mock jury: the money rule, the
                                      #      missing plumbing, score-is-not-odds
+node build/contacts-tests.cjs         # 20 — Stage 4: contacts stay local,
+                                     #      consent, follow-ups, export, debrief
+node build/route-tests.cjs            # 11 — Phase 5 season plan (no server)
 cd worker && npm test                # 45 — API; manages its own worker
 python3 build/build_fit_data.py --selftest   # 11 — the date rules themselves
 ```
 
-All green as of this handoff: **79 / 31 / 77 / 26 / 32 / 102 / 33 / 45 / 11**.
+As of 2026-09-26: **77/79 / 34 / 77 / 26 / 32 / 102 / 33 / 20 / 11 / 11**
+(worker suite not re-run — nothing in `worker/` changed). The two browser
+failures predate this session and are date-driven: "Winter Park ranks higher
+for cheap prints" (the show is now closed and not in the top list) and "a near
+show says it is the real forecast" (the weather stub vs. today's date). Fix
+them next; neither is a feature bug that was introduced here.
 
 Two things worth knowing about the tests:
 
@@ -420,7 +432,30 @@ grade of it).
 
 ## What is next
 
-**§7 Stages 1–3 are shipped.** Sales are now individual rows, so the mix by
+**Shipped 2026-09-26:**
+
+- **§7 Stage 4 — Collectors** (`contacts.html`, `contacts.js`, schema v11).
+  Contacts and the 90-second debrief. The open question is answered:
+  **contacts are device-only**, pinned to LocalStore even when a backend
+  implements them, and leave only by a hand-run CSV that drops anyone marked
+  "do not contact". Follow-up dates are reminders; the page says nothing is
+  sent. The debrief hands back the show's P&L through `ASTExpenses.showResult`.
+- **Phase 5, idea 17 — the season plan** (`route.js`, a panel on the ledger
+  under the map). Legs between accepted/applied/wait-listed shows, days
+  between, straight-line miles as a *floor*, open weekends. Legs are judged
+  only against a daily mileage limit the artist sets; a straight line can
+  prove a leg too far, never that it fits. Road distance (OSRM, already used
+  by the map line) is the obvious upgrade.
+- **Not done from Phase 5:** demographics (3) and tourism (4) need Census /
+  tourism data this sandbox cannot fetch. A session with web egress should
+  build them as a `dataset`-grade build step, like the geocode.
+
+**Next up:** Phase 6 is blocked on the Worker being deployed and ~20 members;
+Phase 7 on saved ZAPP pages. So the unblocked work is: the two date-driven
+browser test failures, the Dinero link (idea 28, below), road distances in the
+season plan, and image sets (21) once the Worker is live.
+
+**§7 Stages 1–4 are shipped.** Sales are now individual rows, so the mix by
 price band and by state is real data rather than an editorial guess. What it
 does *not* yet do is feed back into `fit.js` — the loop that idea 24 needs is
 one function call away and deliberately not wired, because a scorer that quietly
@@ -444,11 +479,6 @@ produced with no source behind it, so it has to answer *from the show record*
 with the same provenance grades the drawer already uses, it needs the Worker
 deployed because an API key cannot ship in `tracker/`, and it lands first as a
 disabled `plan.js` card because there is still no billing in this project.
-
-**Stage 4 (contacts and follow-up, ideas 20 and 22) is next** and is no longer
-premature: it now has sales history behind it, which is the whole reason it was
-staged last. Other people's contact details raise a higher bar than show notes
-— that open question is still open.
 
 **Phase 3 shipped its first three ideas** — the application pipeline (11), the
 jury fee spend tracker (12) and expected value on applying (14). Image sets (21)

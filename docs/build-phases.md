@@ -66,8 +66,8 @@ These numbers are referenced across sessions. Do not renumber them; append.
 | **1** | ~~Data hygiene, geocode (1), weather (2), sales tax (9)~~ **done** | — |
 | **2** | Landed cost (8), break-even (13), cash flow (16), expense log (18) | ~~booth fees~~ — unblocked, see §7 |
 | **3** | ~~Application pipeline (11), jury fee tracker (12), expected value (14)~~ **done** · image sets (21) still open | image sets: R2, so a deployed Worker |
-| **4** | Square import (15), sell-through (19), debrief (22), collector CRM (20) | nothing |
-| **5** | Route planner (17), demographics (3), tourism (4) | ~~Phase 1 geocode~~ — unblocked |
+| **4** | ~~Square import (15), sell-through (19), debrief (22), collector CRM (20)~~ **done** | — |
+| **5** | ~~Route planner (17)~~ **done** (season plan) · demographics (3), tourism (4) open | 3 and 4: web egress for Census / tourism data |
 | **6** | Booth-level (23), benchmarking (24), weather-adjusted (25), load-in (26), wait-list (10) | **Worker deployed + ~20 members** |
 | **7** | Field composition (5), stability signals (6), prospectus diff (7) | saved ZAPP pages — the container cannot fetch them |
 
@@ -401,9 +401,15 @@ Two things came out differently from the plan:
   splitting one stated total into rows would invent pieces, prices, sizes and
   dates in the collection that has to survive an audit.
 
-**Stage 4 — contacts and follow-up (20, 22).** Name, email, what they looked at,
-what they bought or did not, when to follow up. Deliberately last: a CRM with no
-sales history behind it is an address book.
+**Stage 4 — contacts and follow-up (20, 22). SHIPPED** (`tracker/contacts.html`,
+`contacts.js`, v10 → v11). Name, email, phone, where met, what they looked at,
+outcome, links to the sale rows they bought, consent (did not ask / yes / no),
+follow-up date and done date. Plus the 90-second debrief: four optional 1–10
+answers (10 good), would-return, three one-liners, and the show's own P&L back
+from `ASTExpenses.showResult`. Contacts are **device-only** — the Store facade
+never delegates them to a backend. Nothing is backfilled; nothing is sent.
+Not wired: turning a debrief into a member report (the report form is the
+deliberate act for that).
 
 ### Why Stage 3 is the one that matters
 
@@ -428,8 +434,8 @@ loop is what earns a weekly open, and it becomes idea 24 once there are members.
 - ~~Child records vs denormalised. Blocks Stages 2–4.~~ Answered: child records,
   and Stages 2 and 3 both shipped on that shape.
 - Does the expense log need multi-year scoping, or is one season enough?
-- If the Worker is deployed, do contacts sync or stay device-only? Other people's
-  contact details raise a higher bar than show notes.
+- ~~If the Worker is deployed, do contacts sync or stay device-only?~~ Answered:
+  device-only. Changing it is a decision (consent, deletion, breach), not a patch.
 - ~~Does Stage 1's gross-sales field belong on the show record or wait for
   Stage 3?~~ Answered: on the show record. See the Stage 1 note above.
 

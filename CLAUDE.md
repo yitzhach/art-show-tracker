@@ -36,6 +36,8 @@ numbers cost real money, so unknowns stay unknown.
 - Never say anything is deductible. Categorising a row is bookkeeping.
 - A Pro feature is always disabled and never shows a price, plan or sign-up.
   There is no billing in this project.
+- Contacts are other people's details: device-only, never synced, exported
+  only by hand and never including anyone marked "do not contact".
 - Mock jury: a juror's score is never shown as a show's acceptance odds and
   never enters the fit model. Nothing is owed until a juror claims a request.
   No uploads and no transport exist, and the page says so before you start.
@@ -79,6 +81,10 @@ adapter both live in `core.js`. Optional sync: Supabase (last-write-wins on
   lodging finds. DOM-free maths, same as `pipeline.js`.
 - `sales.js` — individual sales: the mix by price band and state, the stated
   gross vs. the rows, and the Square/Stripe CSV import. DOM-free.
+- `contacts.js` / `contacts.html` — collectors, follow-ups, the debrief.
+  Contacts are device-only: `Store` never hands them to a sync backend.
+- `route.js` — the season plan on the ledger. Straight-line miles are a floor;
+  legs are judged only against the artist's own daily limit.
 - `nav.js` — the one page menu, mounted into `.header-actions` on every page.
   Add a page here and nowhere else.
 - `plan.js` — Pro previews. Renders disabled cards only; no billing exists.
@@ -104,6 +110,8 @@ node build/pipeline-tests.cjs
 node build/ranker-tests.cjs
 node build/expense-tests.cjs
 node build/jury-tests.cjs
+node build/contacts-tests.cjs
+node build/route-tests.cjs                  # pure node, no server
 cd worker && npm test
 ```
 Deploy: push to `main`; Pages rebuilds in ~1 min.

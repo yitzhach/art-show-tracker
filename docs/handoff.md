@@ -5,6 +5,29 @@ model, and carries its honesty constraints forward unchanged.
 
 ---
 
+## 0. Latest session — 2026-09-26
+
+`docs/START-HERE.md` is the live status and supersedes the counts in this
+file. What changed:
+
+- **Bug fixed: hand-added shows missing from All shows.** All shows listed
+  only catalogue records; a show typed into the ledger has none. They are now
+  linked on load (`ASTCatalogue.adoptLedger`) — to the shipped record on an
+  exact name match, otherwise to a custom record tagged "yours". The fit
+  sort's sink rule (blocked / closed / unscored at the bottom) now holds in
+  both sort directions.
+- **§7 Stage 4 shipped — Collectors** (`tracker/contacts.html`). Contacts,
+  follow-ups, the 90-second debrief with the show's P&L. Contacts are
+  device-only by design. Schema v11.
+- **Phase 5, idea 17 shipped — the season plan** (`tracker/route.js`, panel
+  on the ledger). Days between shows, straight-line miles as a floor, open
+  weekends, judged only against the artist's own daily mileage limit.
+- **Still open:** demographics (3) and tourism (4) need web egress; two
+  date-driven browser checks fail and predate this session; the Worker is
+  still undeployed (Phase 6); the Dinero link (idea 28).
+
+---
+
 ## 1. What this is
 
 A members-only tool for a network of professional fine artists, layered onto
@@ -358,10 +381,11 @@ Membership is invite-only. The first steward gets in via a one-time
   shared. Member reports fill `byDiscipline` over time, and that is when the
   per-discipline ranking becomes genuinely precise rather than merely
   differently weighted.
-- **Route planning.** The original handoff called this the natural next tool and
-  that has not changed. Labor Day has three strong competing entries;
-  Aug 6–15 is a pick-one between Park City, Crested Butte and Sun Valley.
-  Ranking has hit diminishing returns; scheduling has not.
+- **Route planning.** First version shipped 2026-09-26 as the ledger's
+  Season plan (`tracker/route.js`). Next: real road distances (the map
+  already asks OSRM for the line) so a leg can be judged as fitting, not
+  only as too far. Labor Day still has three strong competing entries;
+  Aug 6–15 is still a pick-one between Park City, Crested Butte and Sun Valley.
 - **Images on reports.** The R2 binding exists, the API does not write to it yet.
 - **Verify the weather provider from a browser.** `tracker/weather.js` calls
   Open-Meteo's historical archive. It needs no key, permits cross-origin
