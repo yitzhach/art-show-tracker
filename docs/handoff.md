@@ -363,7 +363,7 @@ cd worker && npm test                # 45 API checks, manages its own worker
 
 ## 9. Deploying
 
-The front end is static and already live on GitHub Pages. It runs in **solo
+The front end is static and live on Cloudflare (it was on GitHub Pages until 2026-09). It runs in **solo
 mode** with no backend: everything works, everything stays in the browser, every
 report behaves as private.
 
