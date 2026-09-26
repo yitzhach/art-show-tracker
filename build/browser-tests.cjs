@@ -580,7 +580,7 @@ function check(name, pass, detail) {
   /* Built and published are different states, and a build that has not been
      deployed has to say so rather than implying it is live. */
   check('it distinguishes built from published',
-        !!stamp && /(published|not published yet)/.test(stamp), stamp);
+        !!stamp && /(published|built)/.test(stamp), stamp);
 
   const version = await page.evaluate(async () => {
     const r = await fetch('version.json', { cache: 'no-cache' });

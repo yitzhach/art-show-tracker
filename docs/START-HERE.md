@@ -75,10 +75,9 @@ integration rebuilds on every push to `main`.
 The old GitHub Pages workflow (`.github/workflows/static.yml`) was deleted on
 2026-09-26: Pages was never enabled on this repo, so it failed on every push.
 
-**Known gap:** that workflow was what wrote `commit` / `deployedAt` into
-`version.json`. Nothing writes them now, so the version stamp reads "not
-published yet" even when the page is live. Use `version` / `assetVersion`
-to tell builds apart until Cloudflare's build stamps the commit.
+That workflow also wrote `commit` / `deployedAt` into `version.json`. Nothing
+does now, so the version stamp shows the build date only (`version` /
+`assetVersion` tell builds apart).
 
 ---
 

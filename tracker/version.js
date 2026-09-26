@@ -50,14 +50,15 @@ window.ASTVersion = (function () {
         '<span class="ver-tag">v' + esc(v.version) + '</span>' +
         (live
           ? ' &middot; ' + esc(v.commit) + ' &middot; published ' + esc(when)
-          : ' &middot; built ' + esc(when) +
-            ' &middot; <strong>not published yet</strong>') +
+          /* No commit stamp: Cloudflare hosts the site and does not write
+             one. The build date is still the honest answer. */
+          : ' &middot; built ' + esc(when)) +
         ' &middot; <a href="version.json" target="_blank" rel="noopener">details</a>';
       el.title = 'Version ' + v.version +
         '\nBuilt ' + shortDate(v.builtAt) +
         (live ? '\nPublished ' + shortDate(v.deployedAt) +
                 '\nCommit ' + (v.commitFull || v.commit)
-              : '\nNot published yet') +
+              : '') +
         '\n' + (v.shows || '?') + ' shows';
     });
   }
