@@ -29,8 +29,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
-<link rel="stylesheet" href="app.css?v=1de8e957">
-<link rel="stylesheet" href="intel.css?v=1de8e957">
+<link rel="stylesheet" href="app.css?v=23674d2c">
+<link rel="stylesheet" href="intel.css?v=23674d2c">
 </head>
 <body>
 <header class="app-header">
@@ -304,21 +304,21 @@
   </div>
 </section>
 
-<script src="core.js?v=1de8e957"></script>
-<script src="nav.js?v=1de8e957"></script>
-<script src="version.js?v=1de8e957"></script>
-<script src="fit.js?v=1de8e957"></script>
-<script src="ranker.js?v=1de8e957"></script>
-<script src="intel.js?v=1de8e957"></script>
-<script src="members.js?v=1de8e957"></script>
+<script src="core.js?v=23674d2c"></script>
+<script src="nav.js?v=23674d2c"></script>
+<script src="version.js?v=23674d2c"></script>
+<script src="fit.js?v=23674d2c"></script>
+<script src="ranker.js?v=23674d2c"></script>
+<script src="intel.js?v=23674d2c"></script>
+<script src="members.js?v=23674d2c"></script>
 <!-- Weather fetches at runtime from the visitor's browser; sales tax is a
      static table. Both are optional: intel-ui.js renders without either. -->
-<script src="weather.js?v=1de8e957"></script>
-<script src="salestax.js?v=1de8e957"></script>
-<script src="intel-ui.js?v=1de8e957"></script>
-<script src="catalogue.js?v=1de8e957"></script>
-<script src="store-supabase.js?v=1de8e957"></script>
-<script src="import.js?v=1de8e957"></script>
+<script src="weather.js?v=23674d2c"></script>
+<script src="salestax.js?v=23674d2c"></script>
+<script src="intel-ui.js?v=23674d2c"></script>
+<script src="catalogue.js?v=23674d2c"></script>
+<script src="store-supabase.js?v=23674d2c"></script>
+<script src="import.js?v=23674d2c"></script>
 <script type="module">
 /* ==========================================================================
    ALL SHOWS
@@ -403,6 +403,9 @@ C.SORTS.fit = (a, b) => {
   if (b.fit == null) return -1;
   return a.fit - b.fit;
 };
+/* The ordering above only holds ascending; `sink` keeps blocked, closed and
+   unscored rows at the bottom in both directions. */
+C.SORTS.fit.sink = r => r.blocked ? 3 : r.closed ? 2 : (r.fit == null ? 1 : 0);
 C.SORT_DEFAULT_DIR.fit = 'desc';
 
 /* Reported-on marker. Two different facts, and they read differently: a
@@ -492,6 +495,7 @@ const HEART =
    find out its numbers are invented. */
 function testTag(r) {
   const rec = fit.byId[r.id];
+  if (r.custom) return ' <span class="tag" title="You added this show yourself. It is not in the shipped catalogue and has no fit score.">yours</span>';
   return rec && rec.isTest
     ? ' <span class="tag tag-test" title="A practice show. Nothing on it is real.">test</span>'
     : '';
@@ -561,6 +565,7 @@ function rowHtml(r) {
   const dl = deadlineBits(r);
   const fee = r.fee == null ? '—' : '$' + (Number.isInteger(r.fee) ? r.fee : r.fee.toFixed(2));
   return '<div class="crow with-fit' + (r.addedShowId ? ' is-added' : '') +
+    (r.custom ? ' is-custom' : '') +
     (r.blocked ? ' is-blocked' : '') + (r.closed ? ' is-closed' : '') +
     '" data-id="' + esc(r.id) + '">' +
     '<span class="c-name">' +
@@ -647,6 +652,18 @@ async function refresh() {
   /* Reconcile: a record marked as added whose ledger show has since been
      deleted should stop claiming to be in the ledger, or the "Add" button
      never comes back. */
+  /* A show added on the ledger by hand has no catalogue record, and so
+     never listed here. Give it one (only once the catalogue itself loaded,
+     or every shipped show would look unknown). */
+  if (C.isLoaded()) {
+    const relink = C.adoptLedger(state.ledger);
+    for (const r of relink) {
+      await Store.upsert(Object.assign({}, r.show, {
+        catalogueId: r.catalogueId, updatedAt: new Date().toISOString()
+      }));
+    }
+    if (relink.length) state.ledger = await Store.list();
+  }
   const ids = new Set(state.ledger.map(s => s.id));
   C.all().forEach(r => {
     if (r.addedShowId && !ids.has(r.addedShowId)) C.markAdded(r.id, '');
@@ -852,7 +869,13 @@ $('#cards').addEventListener('click', e => {
   const btn = e.target.closest('[data-detail]');
   if (!btn) return;
   const rec = fit.byId[btn.dataset.detail];
-  if (!rec) { toast('No fit record for that show yet.'); return; }
+  if (!rec) {
+    const row = C.get(btn.dataset.detail);
+    toast(row && row.custom
+      ? 'A show you added yourself — it has no fit record. Edit it on the ledger.'
+      : 'No fit record for that show yet.');
+    return;
+  }
   e.stopPropagation();
   UI.openShow(rec);
 });

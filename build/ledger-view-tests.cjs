@@ -51,16 +51,16 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
 
   // ---- name opens details, not an external page --------------------------
   await p.click('#btnViewRows'); await p.waitForTimeout(300);
-  const nameIsButton = await p.$eval('.crow .c-name .namebtn', el => el.tagName);
+  const nameIsButton = await p.$eval('.crow:not(.is-custom) .c-name .namebtn', el => el.tagName);
   check('show name is a button, not a link', nameIsButton === 'BUTTON', nameIsButton);
-  await p.click('.crow .c-name .namebtn');
+  await p.click('.crow:not(.is-custom) .c-name .namebtn');
   await p.waitForTimeout(400);
   check('clicking the name opens the drawer', await p.isVisible('.idr'));
   const drawerTitle = await p.textContent('.idr-head h2');
   await p.click('#idrClose');
 
   // ---- external link is separate and opens a new tab ---------------------
-  const ext = await p.$eval('.crow .c-name .extlink', el => ({
+  const ext = await p.$eval('.crow:not(.is-custom) .c-name .extlink', el => ({
     href: el.getAttribute('href'), target: el.getAttribute('target'), rel: el.getAttribute('rel') }));
   check('external link points off-site', /^https?:/.test(ext.href || ''), ext.href);
   check('external link opens a new tab safely',
@@ -69,7 +69,7 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   // clicking it must NOT open the drawer
   const [popup] = await Promise.all([
     p.waitForEvent('popup', { timeout: 5000 }).catch(() => null),
-    p.click('.crow .c-name .extlink')
+    p.click('.crow:not(.is-custom) .c-name .extlink')
   ]);
   await p.waitForTimeout(300);
   check('the external link does not also open the drawer', !(await p.isVisible('.idr')));
@@ -78,11 +78,11 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   // ---- no report yet -> lens shows dashes --------------------------------
   await p.selectOption('#pfLens', 'mine');
   await p.waitForTimeout(500);
-  const dashes = await p.$$eval('.crow .fitchip', e => e.filter(x => x.textContent.trim() === '—').length);
-  const total = await p.$$eval('.crow .fitchip', e => e.length);
+  const dashes = await p.$$eval('.crow:not(.is-custom) .fitchip', e => e.filter(x => x.textContent.trim() === '—').length);
+  const total = await p.$$eval('.crow:not(.is-custom) .fitchip', e => e.length);
   check('with no reports, "My results" scores nothing rather than guessing',
         dashes === total && total > 100, dashes + ' of ' + total + ' dashes');
-  const dashTitle = await p.$eval('.crow .fitchip', e => e.getAttribute('title'));
+  const dashTitle = await p.$eval('.crow:not(.is-custom) .fitchip', e => e.getAttribute('title'));
   check('the dash explains itself', /have not reported/i.test(dashTitle || ''), dashTitle);
 
   // ---- file a report -----------------------------------------------------
@@ -91,7 +91,7 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   await p.uncheck('#fOpen');
   await p.fill('#fText', 'La Quinta');
   await p.waitForTimeout(400);
-  await p.click('.crow .btn-detail');
+  await p.click('.crow:not(.is-custom) .btn-detail');
   await p.waitForTimeout(400);
   const tabsBefore = await p.$$eval('.rtab', e => e.map(x => x.textContent.trim()));
   check('drawer shows Yours / The network tabs', tabsBefore.length === 2, tabsBefore.join(' | '));
@@ -109,7 +109,7 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   await p.waitForTimeout(700);
 
   // ---- the badge shows on the row ----------------------------------------
-  const badge = await p.$('.crow .rbadge.is-mine');
+  const badge = await p.$('.crow:not(.is-custom) .rbadge.is-mine');
   check('the ledger row marks that you reported', !!badge);
   const badgeTitle = badge ? await badge.getAttribute('title') : '';
   check('the badge says whose report it is', /You have 1 report/i.test(badgeTitle || ''), badgeTitle);
@@ -117,19 +117,19 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   // ---- "My results" lens now scores it ------------------------------------
   await p.selectOption('#pfLens', 'mine');
   await p.waitForTimeout(500);
-  const myFit = await p.$eval('.crow .fitchip', e => e.textContent.trim());
+  const myFit = await p.$eval('.crow:not(.is-custom) .fitchip', e => e.textContent.trim());
   check('"My results" scores a show you reported on', /^\d\.\d$/.test(myFit), myFit);
 
   // and other shows still show a dash
   await p.fill('#fText', '');
   await p.waitForTimeout(500);
-  const scored = await p.$$eval('.crow .fitchip', e => e.filter(x => /^\d/.test(x.textContent.trim())).length);
+  const scored = await p.$$eval('.crow:not(.is-custom) .fitchip', e => e.filter(x => /^\d/.test(x.textContent.trim())).length);
   check('only the reported show scores under "My results"', scored === 1, 'scored: ' + scored);
 
   // ---- read-your-report link ---------------------------------------------
   await p.fill('#fText', 'La Quinta');
   await p.waitForTimeout(400);
-  await p.click('.crow .btn-detail');
+  await p.click('.crow:not(.is-custom) .btn-detail');
   await p.waitForTimeout(500);
   const readLink = await p.textContent('.sd-read');
   check('drawer header links to your report', /Read your report/i.test(readLink || ''), (readLink||'').trim());
@@ -159,7 +159,7 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   await p.click('#idrClose');
   await p.selectOption('#pfLens', 'model');
   await p.waitForTimeout(400);
-  await p.click('.crow .btn-detail');
+  await p.click('.crow:not(.is-custom) .btn-detail');
   await p.waitForTimeout(500);
   const provUnderModel = await p.$$eval('.factable .prov', e => e.map(x => x.textContent.trim()));
   check('under the model lens they go back to estimate',
@@ -218,6 +218,29 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   check('status sorts down the pipeline, not the alphabet',
         order.length > 1 && order.every((v, i) => i === 0 || rank[order[i-1]] <= rank[v]),
         order.slice(0, 6).join(' > '));
+
+  /* ---- A show typed into the ledger by hand lists on All shows ----------
+     It has no catalogue record, and All shows used to list only catalogue
+     records — so it silently never appeared. */
+  await p.goto(BASE, { waitUntil: 'networkidle' });
+  await p.evaluate(async () => {
+    await window.AST.Store.upsert(window.AST.makeShow({
+      name: 'Zzyzx Hand Typed Fair', city: 'Tucson', state: 'AZ',
+      startDate: '2027-03-06', endDate: '2027-03-07', source: 'manual' }));
+  });
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(500);
+  await p.fill('#fText', 'Zzyzx'); await p.waitForTimeout(300);
+  const handTyped = await p.evaluate(() => document.body.innerText.includes('Zzyzx Hand Typed Fair'));
+  check('hand-added ledger show appears on All shows', handTyped);
+  const linked = await p.evaluate(async () =>
+    (await window.AST.Store.list()).find(s => s.name === 'Zzyzx Hand Typed Fair').catalogueId);
+  check('hand-added show is linked to its new record', /^led-/.test(linked || ''), linked);
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(400);
+  const copies = await p.evaluate(() =>
+    window.ASTCatalogue.all().filter(r => r.name === 'Zzyzx Hand Typed Fair').length);
+  check('adopting is idempotent across reloads', copies === 1, String(copies));
 
   /* ---- Dark mode must not flash white between pages ----------------------
      data-theme is applied by an inline script in <head>. Before that existed

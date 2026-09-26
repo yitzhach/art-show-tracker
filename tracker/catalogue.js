@@ -262,7 +262,14 @@ window.ASTCatalogue = (function () {
     var sign = q.dir === 'desc' ? -1 : 1;
     /* Name breaks every tie, so equal rows keep a stable, readable order
        instead of shuffling between renders. */
+    /* A comparator may name rows that sink whichever way the sort runs
+       (`cmp.sink(r)` -> 0 stays, higher sinks further). Applied unsigned,
+       so reversing the order never promotes them to the top. */
     return out.sort(function (a, b) {
+      if (cmp.sink) {
+        var d = cmp.sink(a) - cmp.sink(b);
+        if (d) return d;
+      }
       return sign * cmp(a, b) || a.name.localeCompare(b.name);
     });
   }
@@ -312,7 +319,81 @@ window.ASTCatalogue = (function () {
     });
   }
 
+  /**
+   * Ledger shows with no catalogue record behind them — typed in by hand,
+   * pasted from ZAPP, imported from CSV — used to be invisible on All shows,
+   * because All shows only ever listed catalogue records. This gives each
+   * one a custom record of its own (marked `custom`, so it never reads as
+   * shipped data) and links it both ways, so it lists, hearts and sorts like
+   * any other row. Idempotent: the record id is derived from the show id.
+   *
+   * Only copies what the show states. Nothing is invented for the fields a
+   * hand-typed show never had, and the ledger stays the show's one home —
+   * this record is a pointer to it, not a second copy anybody edits.
+   *
+   * @returns Array<{ show, catalogueId }> — shows whose catalogueId the
+   *   caller should save back to the ledger. Empty when nothing changed.
+   */
+  function adoptLedger(shows) {
+    var s = state();
+    var known = {};
+    order.forEach(function (id) { known[id] = true; });
+    s.added.forEach(function (r) { known[r.id] = true; });
+    var relink = [];
+    var changed = false;
+    /* Before minting a record, look for the shipped one: a show typed in by
+       name (or the ledger's sample season) is usually already catalogued.
+       Exact name only, and only when exactly one record answers to it and
+       no other ledger show already holds it — a guessed link is worse than
+       a duplicate row. */
+    /* Years and "31st Annual" are edition noise, not the show's name. */
+    var norm = function (t) {
+      return String(t || '').toLowerCase()
+        .replace(/\b(19|20)\d\d\b/g, ' ')
+        .replace(/\b\d+(st|nd|rd|th)\s+annual\b/g, ' ')
+        .replace(/[^a-z0-9]+/g, ' ').trim();
+    };
+    var byName = {};
+    order.forEach(function (id) {
+      var k = norm(base[id].name);
+      byName[k] = byName[k] ? '!' : id;
+    });
+    var held = {};
+    (shows || []).forEach(function (sh) { if (sh && sh.catalogueId) held[sh.catalogueId] = true; });
+    (shows || []).forEach(function (sh) {
+      if (!sh || sh.deletedAt || !sh.name) return;
+      if (sh.catalogueId && known[sh.catalogueId]) return;
+      var match = byName[norm(sh.name)];
+      var id = (!sh.catalogueId && match && match !== '!' && !held[match] &&
+                !(s.picks[match] && s.picks[match].addedShowId))
+        ? match : (sh.catalogueId || ('led-' + sh.id));
+      held[id] = true;
+      if (!known[id]) {
+        var rec = makeRecord({
+          id: id, name: sh.name, city: sh.city, state: sh.state,
+          startDate: sh.startDate, endDate: sh.endDate, applyBy: sh.applyBy,
+          fee: sh.juryFee, boothFee: sh.boothFee, url: sh.url,
+          lat: sh.lat, lng: sh.lng, custom: true
+        });
+        rec.custom = true;
+        s.added.push(rec);
+        known[id] = true;
+      }
+      var p = s.picks[id] || {};
+      if (p.addedShowId !== sh.id) {
+        p.addedShowId = sh.id;
+        if (sh.rating && !p.rating) p.rating = A.clampRating(sh.rating);
+        s.picks[id] = p;
+      }
+      changed = true;
+      if (sh.catalogueId !== id) relink.push({ show: sh, catalogueId: id });
+    });
+    if (changed) save(s);
+    return relink;
+  }
+
   return {
+    adoptLedger: adoptLedger,
     SOURCE_URL: SOURCE_URL,
     SORTS: SORTS,
     SORT_DEFAULT_DIR: SORT_DEFAULT_DIR,
