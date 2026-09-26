@@ -12,7 +12,7 @@ window.AST = (function () {
   'use strict';
 
   /* ---- 1. MODEL + CONSTANTS --------------------------------------------- */
-  var SCHEMA_VERSION = 10;
+  var SCHEMA_VERSION = 11;
   var DB_KEY = 'artShowTracker.db';
   var THEME_KEY = 'artShowTracker.theme';
   var CONFIG_KEY = 'artShowTracker.supabase';
@@ -411,6 +411,117 @@ window.AST = (function () {
     };
   }
 
+  /* ---- §7 Stage 4 — contacts and the post-show debrief (ideas 20, 22) ----
+     Where a conversation got to. Blank is "not recorded", never a guess:
+     somebody who walked off without a word and somebody nobody wrote an
+     outcome for are different people. */
+  var CONTACT_OUTCOMES = [
+    { value:'',          label:'Not recorded' },
+    { value:'bought',    label:'Bought' },
+    { value:'interested',label:'Interested, did not buy' },
+    { value:'browsing',  label:'Just looking' },
+    { value:'commission',label:'Asked about a commission' }
+  ];
+  var CONTACT_OUTCOME_LABEL = Object.fromEntries(
+    CONTACT_OUTCOMES.map(function (o) { return [o.value, o.label]; }));
+
+  /* Did they say you may contact them? Three answers, because "did not ask"
+     is the common one and must not read as yes. */
+  var CONSENT = [
+    { value:'',    label:'Did not ask' },
+    { value:'yes', label:'Yes, happy to hear from me' },
+    { value:'no',  label:'No — do not contact' }
+  ];
+  var CONSENT_LABEL = Object.fromEntries(CONSENT.map(function (c) { return [c.value, c.label]; }));
+
+  /**
+   * A person met at a show. Somebody else's details, so the bar is higher
+   * than for anything else in the store: contacts are DEVICE-ONLY. The Store
+   * facade never hands them to a sync backend, even one that implements
+   * them, and they leave the device only through an export the artist runs
+   * by hand. See `Store.listContacts` below.
+   */
+  function makeContact(input) {
+    input = input || {};
+    var now = new Date().toISOString();
+    return {
+      id: input.id || newId(),
+      name: String(input.name || '').trim(),
+      email: String(input.email || '').trim(),
+      phone: String(input.phone || '').trim(),
+      /* Where you met them. Optional: a collector from the studio belongs to
+         no show. */
+      showId: input.showId || '',
+      catalogueId: input.catalogueId || '',
+      cycle: cycleOf(input.cycle || input.metOn),
+      metOn: dateOrEmpty(input.metOn),
+      /* What they looked at, in the artist's words. */
+      interest: String(input.interest || '').trim(),
+      outcome: CONTACT_OUTCOME_LABEL[input.outcome] ? input.outcome : '',
+      /* Sale rows this person bought, by id. Links, never copies: the sale
+         row stays the one record of the money. */
+      saleIds: Array.isArray(input.saleIds) ? input.saleIds.filter(Boolean).map(String) : [],
+      consent: CONSENT_LABEL[input.consent] !== undefined && input.consent ? input.consent : '',
+      /* The date the artist means to follow up. Nothing is sent on it — the
+         app has no delivery channel, and the page says so. */
+      followUpOn: dateOrEmpty(input.followUpOn),
+      /* When the artist marked the follow-up done. Empty = still owed. */
+      followedUpAt: dateOrEmpty(input.followedUpAt),
+      notes: input.notes || '',
+      deletedAt: input.deletedAt || null,
+      createdAt: input.createdAt || now,
+      updatedAt: input.updatedAt || now
+    };
+  }
+
+  /* A 1–10 answer, 10 always good for the artist; null = skipped. */
+  function score10(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
+  }
+  var DEBRIEF_RETURN = [
+    { value:'',      label:'Not decided' },
+    { value:'yes',   label:'Yes' },
+    { value:'maybe', label:'Maybe' },
+    { value:'no',    label:'No' }
+  ];
+  var DEBRIEF_RETURN_LABEL = Object.fromEntries(
+    DEBRIEF_RETURN.map(function (r) { return [r.value, r.label]; }));
+
+  /**
+   * The 90-second post-show debrief (idea 22). One per show per season —
+   * the application's shape, for the same reason. Every answer is optional
+   * and a skipped one stays null: a half-answered debrief is still worth
+   * more than an unanswered one, and a default would put words in the
+   * artist's mouth. Private: nothing here is ever sent anywhere; turning it
+   * into a member report is a separate, deliberate act on the report form.
+   */
+  function makeDebrief(input) {
+    input = input || {};
+    var now = new Date().toISOString();
+    return {
+      id: input.id || newId(),
+      showId: input.showId || '',
+      catalogueId: input.catalogueId || '',
+      cycle: cycleOf(input.cycle),
+      /* Each 1–10, 10 good: buyers who could afford the work, crowd that
+         stopped, how easy load-in was, how well the show was run. */
+      buyers: score10(input.buyers),
+      traffic: score10(input.traffic),
+      loadIn: score10(input.loadIn),
+      organisation: score10(input.organisation),
+      again: DEBRIEF_RETURN_LABEL[input.again] !== undefined && input.again ? input.again : '',
+      /* What moved and what did not, in a line each. */
+      sold: String(input.sold || '').trim(),
+      stuck: String(input.stuck || '').trim(),
+      nextTime: String(input.nextTime || '').trim(),
+      deletedAt: input.deletedAt || null,
+      createdAt: input.createdAt || now,
+      updatedAt: input.updatedAt || now
+    };
+  }
+
   /**
    * A saved ranking — "Lisa's list". The criteria themselves belong to
    * ranker.js, which owns the factor list; core.js only guarantees the
@@ -542,13 +653,15 @@ window.AST = (function () {
 
   function migrate(db) {
     var d = db;
-    if (!d || typeof d !== 'object') d = { schemaVersion: SCHEMA_VERSION, shows: [], events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [] };
+    if (!d || typeof d !== 'object') d = { schemaVersion: SCHEMA_VERSION, shows: [], events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [], contacts: [], debriefs: [] };
     if (!Array.isArray(d.shows)) d.shows = [];
     if (!Array.isArray(d.applications)) d.applications = [];
     if (!Array.isArray(d.rankers)) d.rankers = [];
     if (!Array.isArray(d.expenses)) d.expenses = [];
     if (!Array.isArray(d.reviews)) d.reviews = [];
     if (!Array.isArray(d.sales)) d.sales = [];
+    if (!Array.isArray(d.contacts)) d.contacts = [];
+    if (!Array.isArray(d.debriefs)) d.debriefs = [];
     // v0 (pre-versioning: a bare array or no version) -> v1
     if (!d.schemaVersion) d.schemaVersion = 1;
     // v1 -> v2: soft deletes, so cross-device sync can carry a deletion.
@@ -648,6 +761,15 @@ window.AST = (function () {
       if (!Array.isArray(d.sales)) d.sales = [];
       d.schemaVersion = 10;
     }
+    /* v10 -> v11: §7 Stage 4, contacts and debriefs. Nothing is backfilled.
+       A sale row never recorded who bought it, so no contact can be derived
+       from one, and a debrief is the artist's own answers — there is nothing
+       to answer them with but the artist. */
+    if (d.schemaVersion < 11) {
+      d.schemaVersion = 11;
+    }
+    d.contacts = (Array.isArray(d.contacts) ? d.contacts : []).map(makeContact);
+    d.debriefs = (Array.isArray(d.debriefs) ? d.debriefs : []).map(makeDebrief);
     d.sales = (Array.isArray(d.sales) ? d.sales : []).map(makeSale);
     d.expenses = (Array.isArray(d.expenses) ? d.expenses : []).map(makeExpense);
     d.reviews = (Array.isArray(d.reviews) ? d.reviews : []).map(makeReview);
@@ -659,7 +781,7 @@ window.AST = (function () {
     function read() {
       var raw = null;
       try { raw = localStorage.getItem(DB_KEY); }
-      catch (_) { return { schemaVersion: SCHEMA_VERSION, shows: [], events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [] }; }
+      catch (_) { return { schemaVersion: SCHEMA_VERSION, shows: [], events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [], contacts: [], debriefs: [] }; }
       if (raw === null) return null;
       var parsed;
       try { parsed = JSON.parse(raw); } catch (_) { parsed = null; }
@@ -683,11 +805,35 @@ window.AST = (function () {
       // A brand-new device gets the demo season. Flag it: the seed is not the
       // user's data, so on first sign-in it must not be pushed up as if it
       // were — a second device would duplicate the whole season.
-      return write({ schemaVersion: SCHEMA_VERSION, shows: SEED, events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [], pristineSeed: true });
+      return write({ schemaVersion: SCHEMA_VERSION, shows: SEED, events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [], contacts: [], debriefs: [], pristineSeed: true });
     }
     /** Any real write means this device's data is no longer the untouched seed. */
     function touch(db) { db.pristineSeed = false; return db; }
     function live(rows) { return rows.filter(function (s) { return !s.deletedAt; }); }
+    /* The child-record upsert and tombstone, once. Older collections spell
+       it out by hand; new ones use this. */
+    function putChild(key, make, input) {
+      var db = load();
+      var rec = make(input);
+      rec.updatedAt = new Date().toISOString();
+      var i = db[key].findIndex(function (r) { return r.id === rec.id; });
+      if (i === -1) db[key].push(rec);
+      else db[key][i] = Object.assign({}, db[key][i], rec);
+      write(touch(db));
+      return Promise.resolve(rec);
+    }
+    function dropChild(key, id) {
+      var db = load();
+      var i = db[key].findIndex(function (r) { return r.id === id; });
+      if (i === -1) return Promise.resolve(null);
+      var before = Object.assign({}, db[key][i]);
+      db[key][i] = Object.assign({}, db[key][i], {
+        deletedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      write(touch(db));
+      return Promise.resolve(before);
+    }
 
     return {
       /** The app's view of the data: tombstones never reach the UI. */
@@ -740,6 +886,7 @@ window.AST = (function () {
         var db = { schemaVersion: SCHEMA_VERSION, shows: shows.map(makeShow),
                    events: prev.events, applications: prev.applications,
                    rankers: prev.rankers, expenses: prev.expenses, sales: prev.sales,
+                   contacts: prev.contacts, debriefs: prev.debriefs,
                    reviews: prev.reviews, pristineSeed: false };
         write(db);
         return Promise.resolve(db.shows.slice());
@@ -752,6 +899,7 @@ window.AST = (function () {
         var db = { schemaVersion: SCHEMA_VERSION, shows: rows.map(makeShow),
                    events: prev.events, applications: prev.applications,
                    rankers: prev.rankers, expenses: prev.expenses, sales: prev.sales,
+                   contacts: prev.contacts, debriefs: prev.debriefs,
                    reviews: prev.reviews, pristineSeed: false };
         write(db);
         return Promise.resolve(db.shows.slice());
@@ -906,6 +1054,14 @@ window.AST = (function () {
         write(touch(db));
         return Promise.resolve(before);
       },
+      /* ---- §7 Stage 4: contacts and debriefs ------------------------------ */
+      listContacts: function () { return Promise.resolve(live(load().contacts)); },
+      listAllContacts: function () { return Promise.resolve(load().contacts.slice()); },
+      upsertContact: function (c) { return putChild('contacts', makeContact, c); },
+      removeContact: function (id) { return dropChild('contacts', id); },
+      listDebriefs: function () { return Promise.resolve(live(load().debriefs)); },
+      upsertDebrief: function (d) { return putChild('debriefs', makeDebrief, d); },
+      removeDebrief: function (id) { return dropChild('debriefs', id); },
       /* ---- jury reviews --------------------------------------------------- */
       listReviews: function () { return Promise.resolve(live(load().reviews)); },
       listAllReviews: function () { return Promise.resolve(load().reviews.slice()); },
@@ -1038,7 +1194,17 @@ window.AST = (function () {
     listSales:  function ()     { return (backend.listSales  || LocalStore.listSales).call(backend); },
     getSale:    function (id)   { return (backend.getSale    || LocalStore.getSale).call(backend, id); },
     upsertSale: function (sale) { return (backend.upsertSale || LocalStore.upsertSale).call(backend, sale); },
-    removeSale: function (id)   { return (backend.removeSale || LocalStore.removeSale).call(backend, id); }
+    removeSale: function (id)   { return (backend.removeSale || LocalStore.removeSale).call(backend, id); },
+    /* Contacts are other people's details, so they are DEVICE-ONLY and do
+       not use the degrade-to-local pattern: they go to LocalStore even when
+       a backend implements them. Changing this is a decision, not a patch. */
+    listContacts:  function ()  { return LocalStore.listContacts(); },
+    upsertContact: function (c) { return LocalStore.upsertContact(c); },
+    removeContact: function (id){ return LocalStore.removeContact(id); },
+    /* Debriefs: the usual degrade-to-local fallback. */
+    listDebriefs:  function ()  { return (backend.listDebriefs  || LocalStore.listDebriefs).call(backend); },
+    upsertDebrief: function (d) { return (backend.upsertDebrief || LocalStore.upsertDebrief).call(backend, d); },
+    removeDebrief: function (id){ return (backend.removeDebrief || LocalStore.removeDebrief).call(backend, id); }
   };
   function useStore(next) { backend = next || LocalStore; return Store; }
   function currentStore() { return backend; }
@@ -1362,7 +1528,10 @@ window.AST = (function () {
     makeShow: makeShow, makeEvent: makeEvent, makeReminder: makeReminder,
     makeApplication: makeApplication, makeRanker: makeRanker,
     makeExpense: makeExpense, makeReview: makeReview, makeReviewImage: makeReviewImage,
-    makeSale: makeSale,
+    makeSale: makeSale, makeContact: makeContact, makeDebrief: makeDebrief,
+    CONTACT_OUTCOMES: CONTACT_OUTCOMES, CONTACT_OUTCOME_LABEL: CONTACT_OUTCOME_LABEL,
+    CONSENT: CONSENT, CONSENT_LABEL: CONSENT_LABEL,
+    DEBRIEF_RETURN: DEBRIEF_RETURN, DEBRIEF_RETURN_LABEL: DEBRIEF_RETURN_LABEL,
     PAYMENT_METHODS: PAYMENT_METHODS, PAYMENT_LABEL: PAYMENT_LABEL,
     REVIEW_STAGES: REVIEW_STAGES, REVIEW_STAGE_LABEL: REVIEW_STAGE_LABEL,
     IMAGE_KINDS: IMAGE_KINDS, IMAGE_KIND_LABEL: IMAGE_KIND_LABEL,

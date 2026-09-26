@@ -26,6 +26,7 @@ var ASTNav = (function () {
     { file:'browse.html',   label:'All shows',  note:'The catalogue, fit scores and the drawer' },
     { file:'calendar.html', label:'Calendar',   note:'The season, clashes and your own events' },
     { file:'expenses.html', label:'Money',      note:'Expenses, sales and did it pay for itself' },
+    { file:'contacts.html', label:'Collectors', note:'Who you met, follow-ups and the debrief' },
     { file:'jury.html',     label:'Mock jury',  note:'Practice review — scaffolding only' },
     { file:'map.html',      label:'Map',        note:'The full-page map' }
   ];

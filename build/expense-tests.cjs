@@ -260,7 +260,7 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
              sales: up.sales, gross: up.shows[0].grossSales };
   });
   check('a v9 database migrates to the current schema',
-        mig10.v === mig10.current && mig10.current === 10, String(mig10.v));
+        mig10.v === mig10.current && mig10.current >= 10, String(mig10.v));
   /* Splitting one stated total into rows would have to invent pieces, prices,
      sizes and dates, in the one collection that has to survive an audit. */
   check('a stated gross total is NOT split into invented sale rows',
