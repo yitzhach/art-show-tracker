@@ -253,6 +253,32 @@
     paint();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountPanel);
-  else mountPanel();
+  /* ---- "Sync now" buttons on other pages ([data-studio-sync]) ----------- */
+  var SYNC_LABEL = { syncing: 'Syncing\u2026', offline: 'Offline', error: 'Sync problem' };
+  function wireSyncButtons() {
+    [].forEach.call(document.querySelectorAll('[data-studio-sync]'), function (b) {
+      var flash = null;
+      function paint(state) {
+        b.hidden = !S.session();
+        clearTimeout(flash);
+        state = state || S.status();
+        b.textContent = SYNC_LABEL[state] || 'Sync now';
+        b.dataset.state = state;
+        b.title = state === 'error' ? 'Sync failed: open Account & sync on the ledger for details' : '';
+        if (state === 'synced' && b.dataset.clicked) {
+          b.textContent = 'Synced';
+          delete b.dataset.clicked;
+          flash = setTimeout(function () { b.textContent = 'Sync now'; }, 2000);
+        }
+      }
+      b.addEventListener('click', function () { b.dataset.clicked = '1'; S.sync(); });
+      S.on('status', function (e) { paint(e.state); });
+      S.on('session', function () { paint(); });
+      paint();
+    });
+  }
+
+  function boot() { mountPanel(); wireSyncButtons(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();

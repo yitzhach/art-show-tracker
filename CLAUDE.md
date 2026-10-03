@@ -92,7 +92,8 @@ fully without any of them, and from `file://` the studio is off entirely.
   Contacts are device-only: `Store` never hands them to a sync backend.
 - `route.js` — the season plan on the ledger. Straight-line miles are a floor;
   legs are judged only against the artist's own daily limit.
-- `nav.js` — the one page menu, mounted into `.header-actions` on every page.
+- `nav.js` — the one page menu, mounted into `.header-actions` on every page;
+  also "Account & sync" (→ `index.html#account`) and, signed in, "Sync now".
   Add a page here and nowhere else.
 - `plan.js` — Pro previews. Renders disabled cards only; no billing exists.
 - `jury.js` / `jury.html` — mock jury review. Mostly refusals: no storage, no

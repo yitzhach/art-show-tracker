@@ -31,6 +31,15 @@ var ASTNav = (function () {
     { file:'map.html',      label:'Map',        note:'The full-page map' }
   ];
 
+  /* What the studio's sync status means, in words. */
+  var STATUS_WORDS = {
+    synced: 'Synced',
+    syncing: 'Syncing\u2026',
+    offline: 'Offline \u2014 changes wait here and sync when you are back online',
+    error: 'Sync problem \u2014 open Account & sync',
+    signed_out: 'Not signed in'
+  };
+
   /** Which page we are on, from the URL. Empty path means the ledger. */
   function currentFile(href) {
     var path = String(href || window.location.pathname);
@@ -82,11 +91,43 @@ var ASTNav = (function () {
         '<span class="nav-item-note">' + esc(p.note) + '</span></a>';
     }).join('');
 
+    /* Account & sync, and Sync now, on every page: the ledger's sync pill is
+       small on a phone, and the other pages had no way to it at all. Not
+       .nav-item, so PAGES stays the list of pages. */
+    var acts = document.createElement('div');
+    acts.className = 'nav-actions';
+    acts.innerHTML =
+      '<a class="nav-action" id="navAccount" role="menuitem" href="index.html#account">' +
+      '<span class="nav-item-label">Account &amp; sync</span>' +
+      '<span class="nav-item-note" id="navAccountNote"></span></a>' +
+      '<button type="button" class="nav-action" id="navSyncNow" role="menuitem" hidden>' +
+      '<span class="nav-item-label">Sync now</span>' +
+      '<span class="nav-item-note" id="navSyncNote"></span></button>';
+    list.appendChild(acts);
+    var accountNote = acts.querySelector('#navAccountNote');
+    var syncBtn = acts.querySelector('#navSyncNow');
+    var syncNote = acts.querySelector('#navSyncNote');
+
+    function studio() {
+      var S = window.ASTStudio;
+      return S && S.available && S.available() ? S : null;
+    }
+    function paintAccount() {
+      var S = studio();
+      var sess = S && S.session();
+      accountNote.textContent = sess
+        ? 'Signed in as ' + sess.email
+        : (S ? 'Sign in to keep shows and sales on every device' : 'Sync settings');
+      syncBtn.hidden = !sess;
+      if (sess) syncNote.textContent = STATUS_WORDS[S.status()] || '';
+    }
+
     wrap.appendChild(btn);
     wrap.appendChild(list);
     host.insertBefore(wrap, host.firstChild);
 
     function open() {
+      paintAccount();
       list.hidden = false;
       btn.setAttribute('aria-expanded', 'true');
     }
@@ -97,6 +138,25 @@ var ASTNav = (function () {
     function toggle() { list.hidden ? open() : close(); }
 
     btn.addEventListener('click', function (e) { e.stopPropagation(); toggle(); });
+    /* On the ledger the drawer is right here: open it rather than reload. */
+    acts.querySelector('#navAccount').addEventListener('click', function (e) {
+      if (here === 'index.html' && typeof window.ASTOpenAccount === 'function') {
+        e.preventDefault();
+        close();
+        window.ASTOpenAccount();
+      }
+    });
+    syncBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var S = studio();
+      if (!S) return;
+      syncNote.textContent = STATUS_WORDS.syncing;
+      S.sync().then(paintAccount, paintAccount);
+    });
+    if (studio()) {
+      studio().on('status', paintAccount);
+      studio().on('session', paintAccount);
+    }
     /* Anywhere else on the page, and Escape, close it. A menu you cannot get
        rid of on a phone is worse than no menu. */
     document.addEventListener('click', function (e) {

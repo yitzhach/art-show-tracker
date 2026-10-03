@@ -141,6 +141,52 @@ function check(name, ok, detail) {
   const f = await fpage.evaluate(() => ({ avail: ASTStudio.available(), panel: !!document.getElementById('studioSection'),
                                           local: AST.currentStore() === AST.LocalStore }));
   check('from file://, the studio stays off and the app is local', !f.avail && !f.panel && f.local, JSON.stringify(f));
+
+  /* Account & sync and Sync now are in the menu on every page, and the Money
+     page has its own Sync now. Signed out, Sync now is hidden everywhere. */
+  console.log('\n-- account and sync from every page --');
+  const open = await page.evaluate(() => {
+    document.getElementById('navMenuBtn').click();
+    const acct = document.getElementById('navAccount');
+    const out = { href: acct && acct.getAttribute('href'), syncHidden: document.getElementById('navSyncNow').hidden };
+    acct.click();
+    out.drawer = !document.getElementById('settingsDrawer').hidden;
+    out.menuClosed = document.getElementById('navMenuList').hidden;
+    return out;
+  });
+  check('the ledger menu has Account & sync, and it opens the drawer in place',
+        open.href === 'index.html#account' && open.drawer && open.menuClosed, JSON.stringify(open));
+  check('signed out, the menu has no Sync now', open.syncHidden === true);
+
+  const money = await browser.newPage();
+  money.on('pageerror', e => errors.push(e.message));
+  await money.goto(BASE.replace('index.html', 'expenses.html'), { waitUntil: 'load' });
+  const out = await money.evaluate(() => ({ btn: !!document.getElementById('expSync'),
+    hidden: document.getElementById('expSync').hidden, acct: !!document.getElementById('navAccount') }));
+  check('the Money page has a Sync now button, hidden while signed out', out.btn && out.hidden && out.acct, JSON.stringify(out));
+
+  const via = await browser.newPage();
+  via.on('pageerror', e => errors.push(e.message));
+  await via.goto(BASE + '#account', { waitUntil: 'load' });
+  check('index.html#account opens the drawer (the link from other pages)',
+        await via.evaluate(() => !document.getElementById('settingsDrawer').hidden));
+
+  /* Signed in (no API behind this static server, so sync reports a problem):
+     the buttons appear and say so instead of pretending. */
+  await money.evaluate(() => localStorage.setItem('artShowTracker.studio',
+    JSON.stringify({ signedIn: true, email: 'owner@example.com', studioId: null })));
+  await money.reload({ waitUntil: 'load' });
+  await money.waitForFunction(() => document.getElementById('expSync').dataset.state === 'error', null, { timeout: 15000 }).catch(() => {});
+  const inn = await money.evaluate(() => {
+    document.getElementById('navMenuBtn').click();
+    return { shown: !document.getElementById('expSync').hidden, label: document.getElementById('expSync').textContent,
+             menuSync: !document.getElementById('navSyncNow').hidden,
+             note: document.getElementById('navAccountNote').textContent };
+  });
+  check('signed in, Sync now shows on the Money page and in the menu', inn.shown && inn.menuSync, JSON.stringify(inn));
+  check('a failed sync says so on the button', inn.label === 'Sync problem', inn.label);
+  check('the menu says who is signed in', inn.note === 'Signed in as owner@example.com', inn.note);
+  await money.evaluate(() => localStorage.removeItem('artShowTracker.studio'));
   check('no page errors', !errors.length && !ferrs.length, errors.concat(ferrs).join(' | '));
   await browser.close();
 

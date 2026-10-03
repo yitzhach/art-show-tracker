@@ -31,11 +31,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
       referrerpolicy="no-referrer">
-<link rel="stylesheet" href="app.css?v=5cc94564">
+<link rel="stylesheet" href="app.css?v=11dc60a5">
 <!-- The ledger shows the same fit/intel drawer the catalogue does, so it needs
      the same styles. Scoped to .idr/.fitchip/.prov and its own tokens; it adds
      to app.css rather than competing with it. -->
-<link rel="stylesheet" href="intel.css?v=5cc94564">
+<link rel="stylesheet" href="intel.css?v=11dc60a5">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -715,31 +715,31 @@
      sandbox and an unverified hash would break the map outright. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
         referrerpolicy="no-referrer"></script>
-<script src="core.js?v=5cc94564"></script>
-<script src="pwa.js?v=5cc94564"></script>
-<script src="studio-sdk.js?v=5cc94564"></script>
-<script src="studio-store.js?v=5cc94564"></script>
-<script src="studio-ui.js?v=5cc94564"></script>
-<script src="nav.js?v=5cc94564"></script>
-<script src="version.js?v=5cc94564"></script>
-<script src="map.js?v=5cc94564"></script>
-<script src="route.js?v=5cc94564"></script>
+<script src="core.js?v=11dc60a5"></script>
+<script src="pwa.js?v=11dc60a5"></script>
+<script src="studio-sdk.js?v=11dc60a5"></script>
+<script src="studio-store.js?v=11dc60a5"></script>
+<script src="studio-ui.js?v=11dc60a5"></script>
+<script src="nav.js?v=11dc60a5"></script>
+<script src="version.js?v=11dc60a5"></script>
+<script src="map.js?v=11dc60a5"></script>
+<script src="route.js?v=11dc60a5"></script>
 <!-- The fit/intel layer, so a show in the ledger opens the same breakdown
      it does in the catalogue. weather.js and salestax.js are optional to
      intel-ui.js, but without them the drawer silently loses two panels,
      which is worse than carrying two small files. -->
-<script src="fit.js?v=5cc94564"></script>
-<script src="pipeline.js?v=5cc94564"></script>
-<script src="intel.js?v=5cc94564"></script>
-<script src="members.js?v=5cc94564"></script>
-<script src="weather.js?v=5cc94564"></script>
-<script src="salestax.js?v=5cc94564"></script>
-<script src="intel-ui.js?v=5cc94564"></script>
-<script src="store-supabase.js?v=5cc94564"></script>
-<script src="import.js?v=5cc94564"></script>
-<script src="import-ui.js?v=5cc94564"></script>
-<script src="share.js?v=5cc94564"></script>
-<script src="share-ui.js?v=5cc94564"></script>
+<script src="fit.js?v=11dc60a5"></script>
+<script src="pipeline.js?v=11dc60a5"></script>
+<script src="intel.js?v=11dc60a5"></script>
+<script src="members.js?v=11dc60a5"></script>
+<script src="weather.js?v=11dc60a5"></script>
+<script src="salestax.js?v=11dc60a5"></script>
+<script src="intel-ui.js?v=11dc60a5"></script>
+<script src="store-supabase.js?v=11dc60a5"></script>
+<script src="import.js?v=11dc60a5"></script>
+<script src="import-ui.js?v=11dc60a5"></script>
+<script src="share.js?v=11dc60a5"></script>
+<script src="share-ui.js?v=11dc60a5"></script>
 <script type="module">
 /* ==========================================================================
    1-5. SHARED CORE
@@ -1797,6 +1797,11 @@ track.addEventListener('keydown', e => {
 $('#btnClearRating').addEventListener('click', () => { setRating(0); track.focus(); });
 
 $('#syncPill').addEventListener('click', openSettings);
+/* The page menu's "Account & sync" opens the drawer here, and other pages
+   link to index.html#account. */
+window.ASTOpenAccount = openSettings;
+if (location.hash === '#account') openSettings();
+window.addEventListener('hashchange', () => { if (location.hash === '#account') openSettings(); });
 $('#btnCloseSettings').addEventListener('click', closeSettings);
 $('#btnCloseSettings2').addEventListener('click', closeSettings);
 $('#btnSaveSettings').addEventListener('click', saveProject);
