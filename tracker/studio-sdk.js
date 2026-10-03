@@ -27,6 +27,7 @@ var StudioSDK = (() => {
     ApiClient: () => ApiClient,
     ApiError: () => ApiError,
     NetworkError: () => NetworkError,
+    PUSH_BATCH: () => PUSH_BATCH,
     Studio: () => Studio,
     applyPatch: () => applyPatch,
     isId: () => isId,
@@ -666,7 +667,7 @@ caused by: ${_Layerr.fullStack(cause)}`;
   }
   var verb = (op) => op.action.slice(op.entityType.length + 1);
   var same = (o, type, id) => o.entityType === type && o.entityId === id;
-  var PUSH_BATCH = 200;
+  var PUSH_BATCH = 6;
   var Studio = class _Studio {
     constructor(opts) {
       __publicField(this, "api");

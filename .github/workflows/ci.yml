@@ -1,7 +1,7 @@
 name: CI
 
 # The tracker's own suites, then the two-device offline run against the studio
-# API from yitzhach/Art-Talk-Back (default branch). The suites were written for
+# API from yitzhach/Art-Talk-Back (default branch, or its branch of the same name). The suites were written for
 # a sandbox with no internet (weather asserts the failure path), so test steps
 # point Chromium at a dead proxy; loopback bypasses it.
 on:
@@ -19,9 +19,21 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      # A change that spans both repos sits on a branch of the same name in each
+      # (Art-Talk-Back D-056): test against that platform branch, else its default branch.
+      - name: Pick the platform branch
+        id: platform
+        run: |
+          ref="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if git ls-remote --exit-code --heads https://github.com/yitzhach/Art-Talk-Back "$ref" >/dev/null 2>&1; then
+            echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
         with:
           repository: yitzhach/Art-Talk-Back
+          ref: ${{ steps.platform.outputs.ref }}
           path: .studio-platform
       - uses: pnpm/action-setup@v4
         with:
