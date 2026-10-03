@@ -29,8 +29,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
-<link rel="stylesheet" href="app.css?v=11dc60a5">
-<link rel="stylesheet" href="intel.css?v=11dc60a5">
+<link rel="stylesheet" href="app.css?v=5888c036">
+<link rel="stylesheet" href="intel.css?v=5888c036">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -321,6 +321,10 @@
         <select class="control" id="saShow"></select>
         <div class="hint">Optional. A studio sale in February belongs to no show,
           and is still a sale.</div>
+        <p class="hint" id="saNoShow" role="alert" style="color:var(--warn);font-weight:600" hidden>
+          No show picked. This sale will be listed under “No show” and
+          won’t appear when you look at one show. Pick a show above, or press
+          “Save with no show” to keep it as is.</p>
       </div>
       <div class="form-row">
         <label class="label" for="saNotes">Notes</label>
@@ -378,17 +382,17 @@
 
 <p class="exp-foot" id="buildStamp"></p>
 
-<script src="core.js?v=11dc60a5"></script>
-<script src="pwa.js?v=11dc60a5"></script>
-<script src="studio-sdk.js?v=11dc60a5"></script>
-<script src="studio-store.js?v=11dc60a5"></script>
-<script src="studio-ui.js?v=11dc60a5"></script>
-<script src="nav.js?v=11dc60a5"></script>
-<script src="version.js?v=11dc60a5"></script>
-<script src="expenses.js?v=11dc60a5"></script>
-<script src="sales.js?v=11dc60a5"></script>
-<script src="plan.js?v=11dc60a5"></script>
-<script src="store-supabase.js?v=11dc60a5"></script>
+<script src="core.js?v=5888c036"></script>
+<script src="pwa.js?v=5888c036"></script>
+<script src="studio-sdk.js?v=5888c036"></script>
+<script src="studio-store.js?v=5888c036"></script>
+<script src="studio-ui.js?v=5888c036"></script>
+<script src="nav.js?v=5888c036"></script>
+<script src="version.js?v=5888c036"></script>
+<script src="expenses.js?v=5888c036"></script>
+<script src="sales.js?v=5888c036"></script>
+<script src="plan.js?v=5888c036"></script>
+<script src="store-supabase.js?v=5888c036"></script>
 <script type="module">
 'use strict';
 /* ==========================================================================
@@ -411,7 +415,8 @@ const $ = sel => document.querySelector(sel);
 Theme.init($('#btnTheme'));
 
 const state = { rows: [], shows: [], sales: [], showId: '', category: '',
-                editingId: null, editingSaleId: null, pendingImport: null };
+                editingId: null, editingSaleId: null, pendingImport: null,
+                noShowWarned: false };
 
 const money = n => n == null ? '\u2014' : '$' + Math.round(n).toLocaleString();
 
@@ -843,6 +848,7 @@ function openSaleEditor(row) {
   $('#saQty').value = row && row.quantity > 1 ? row.quantity : '';
   $('#saShow').value = row ? row.showId : state.showId;
   $('#saNotes').value = row ? row.notes : '';
+  resetNoShowWarning();
   /* Somebody else's machine produced this row. It keeps saying so. */
   const imported = row && (row.source === 'square' || row.source === 'stripe');
   $('#saOrigin').hidden = !imported;
@@ -862,8 +868,25 @@ function closeSaleEditor() {
   if ($('#exModal').hidden && $('#imModal').hidden) $('#exOverlay').hidden = true;
 }
 
+/* A sale with no show is allowed (a studio or online sale is still a sale),
+   but saving one by accident hides it from every show's view. So the first
+   Save warns; the second, unchanged, saves. Editing a sale that already had
+   no show doesn't nag. (Isaac, 2026-10-03: warn, don't block.) */
+function resetNoShowWarning() {
+  state.noShowWarned = false;
+  $('#saNoShow').hidden = true;
+  $('#saSave').textContent = 'Save';
+}
 async function saveSale() {
   const existing = state.sales.find(r => r.id === state.editingSaleId);
+  const needsWarning = !$('#saShow').value && !(existing && !existing.showId);
+  if (needsWarning && !state.noShowWarned) {
+    state.noShowWarned = true;
+    $('#saNoShow').hidden = false;
+    $('#saSave').textContent = 'Save with no show';
+    $('#saShow').focus();
+    return;
+  }
   await Store.upsertSale({
     ...(existing || {}),
     id: state.editingSaleId || undefined,
@@ -976,6 +999,7 @@ $('#exClose').addEventListener('click', closeEditor);
 $('#exOverlay').addEventListener('click', () => { closeEditor(); closeSaleEditor(); closeImport(); });
 $('#saleAdd').addEventListener('click', () => openSaleEditor(null));
 $('#saSave').addEventListener('click', saveSale);
+$('#saShow').addEventListener('change', resetNoShowWarning);
 $('#saDelete').addEventListener('click', removeSale);
 $('#saCancel').addEventListener('click', closeSaleEditor);
 $('#saClose').addEventListener('click', closeSaleEditor);
