@@ -31,3 +31,8 @@ name = "studio-show-tracker-staging"
 [[env.staging.services]]
 binding = "API"
 service = "studio-api-staging"
+
+# Branch previews (Cloudflare runs `wrangler preview` for non-main branches).
+# Previews don't get service bindings, so a preview serves the app but its
+# /v1 calls fail; test the studio on studio-show-tracker-staging instead.
+[previews]
