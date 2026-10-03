@@ -1,7 +1,33 @@
+# The live Show Tracker. Cloudflare's Git integration deploys this file's top
+# level from `main`, so the top level IS production. Keep the name: the data
+# people already saved lives on this Worker's origin, and "Import my existing
+# data" can only read it from here.
 name = "art-show-tracker"
-compatibility_date = "2026-09-01"
+main = "app-worker.js"
+# Pinned to what the studio platform's local runtime supports (its D-025).
+compatibility_date = "2026-08-15"
 
-# Serves tracker/ as static files. No build step: tracker/ is plain
-# HTML/JS/CSS (see tracker's own CLAUDE.md) — this Worker just hosts it.
+# tracker/ is plain HTML/JS/CSS with no build step (see CLAUDE.md). Files are
+# served exactly as named ("none"): the pages link to index.html, and the
+# default handling would 307 that to "/", which the offline cache can't replay.
+# The Worker runs first only for the studio API and the bare "/".
 [assets]
 directory = "tracker"
+binding = "ASSETS"
+html_handling = "none"
+run_worker_first = ["/v1/*", "/"]
+
+# /v1/* goes to the studio API on the same origin (first-party session cookie,
+# no CORS). The API lives in yitzhach/Art-Talk-Back.
+[[services]]
+binding = "API"
+service = "studio-api"
+
+# Staging: a separate Worker against the staging API. Deployed by Art-Talk-Back's
+# "Deploy staging" workflow; never by the Git integration.
+[env.staging]
+name = "studio-show-tracker-staging"
+
+[[env.staging.services]]
+binding = "API"
+service = "studio-api-staging"
