@@ -59,6 +59,10 @@ in **plain language** — assume a beginner engineer. Aim for under ~150 words.
   `ASTMembers`, `ASTVersion`, `ASTSupabase`). Opens via `file://` by design.
 - **`build/`** — Python 3, stdlib + `openpyxl`/`zipcodes`. Writes JSON to `tracker/`.
 - **`worker/`** — Cloudflare Worker, D1 + KV + R2, wrangler 4. Complete, undeployed.
+- **Studio platform** — shows and sales sync through Isaac's studio API
+  (`/v1/*`, repo `yitzhach/Art-Talk-Back`) when the device is signed in there.
+  `app-worker.js` serves `tracker/` and forwards `/v1/*` to the `studio-api`
+  Worker (service binding), so app and API share one origin.
 - **Root `App.tsx`, `components/`, `vite.config.ts`** — a *separate* React + Vite
   portfolio site, unrelated to the tracker.
 
@@ -67,8 +71,11 @@ in **plain language** — assume a beginner engineer. Aim for under ~150 words.
 into `tracker/fit-data.json`, `catalogue.json`, `version.json`. The browser reads
 those flat files — no server in the read path. State is `localStorage` under
 `artShowTracker.*`, versioned by `SCHEMA_VERSION`; migrations and the only store
-adapter both live in `core.js`. Optional sync: Supabase (last-write-wins on
-`updatedAt`) and the Worker (member intel). Solo mode works fully without either.
+adapter both live in `core.js`. Optional sync: the studio (shows + sales only, through
+`studio-store.js` behind `AST.Store`; offline-first, conflicts become review
+cards), else Supabase (last-write-wins on `updatedAt`), plus the Worker (member
+intel). Signed in to the studio, Supabase is off for the ledger. Solo mode works
+fully without any of them, and from `file://` the studio is off entirely.
 
 ## Key files
 - `core.js` — model (`makeShow`), store adapter, migrations, theme.
@@ -94,6 +101,12 @@ adapter both live in `core.js`. Optional sync: Supabase (last-write-wins on
 - `calendar.html` / `calendar.js` — the calendar. All the date maths, lane
   packing, clash detection and the .ics live in the js, DOM-free, so a phone
   app can reuse them; the html only renders.
+- `studio-store.js` / `studio-ui.js` — the studio backend for shows + sales,
+  "Import my existing data", sign-in, review/refused cards. Every other
+  collection stays in localStorage; contacts never leave the device.
+- `studio-sdk.js` — vendored, generated in Art-Talk-Back
+  (`pnpm --filter @studio/sdk bundle:classic`). Never edit by hand.
+- `sw.js`, `pwa.js`, `manifest.webmanifest` — installable app shell (offline).
 - `build/build_fit_data.py` — the build; also date rules and cache-busting.
 - `build/import_show_research.py` — booth fee parser. Fails closed on purpose.
 - `build/research-overrides.json` — hand-audited facts, each with provenance.
@@ -112,9 +125,13 @@ node build/expense-tests.cjs
 node build/jury-tests.cjs
 node build/contacts-tests.cjs
 node build/route-tests.cjs                  # pure node, no server
+node build/run-suites.cjs                   # all of the above + pwa + studio
+STUDIO_PLATFORM=../Art-Talk-Back node e2e/two-devices.cjs   # offline sync, 2 devices
 cd worker && npm test
 ```
-Deploy: push to `main`; Cloudflare (root `wrangler.toml`) serves `tracker/`.
+Deploy: push to `main`; Cloudflare (root `wrangler.toml`) deploys `art-show-tracker`.
+Its `studio-api` binding must exist first. Staging (`studio-show-tracker-staging`)
+is deployed by Art-Talk-Back's "Deploy staging" workflow.
 
 ## Gotchas
 - Page looks stale? Check `version.json`'s `commit` against `main` — almost always
@@ -134,6 +151,8 @@ Deploy: push to `main`; Cloudflare (root `wrangler.toml`) serves `tracker/`.
   zooms back out.
 
 ## Do NOT
+- Rename the Worker: saved seasons live on this origin's localStorage.
+- Send contacts, or anything but shows and sales, to the studio.
 - Assume React/TS — root `package.json` is the portfolio site.
 - Add a build step, bundler, or `type="module"` to `tracker/`.
 - Write to `build/catalogue-source.json` — pristine export, read-only.

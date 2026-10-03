@@ -1,0 +1,45 @@
+name: CI
+
+# The tracker's own suites, then the two-device offline run against the studio
+# API from yitzhach/Art-Talk-Back (default branch). The suites were written for
+# a sandbox with no internet (weather asserts the failure path), so test steps
+# point Chromium at a dead proxy; loopback bypasses it.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tracker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: yitzhach/Art-Talk-Back
+          path: .studio-platform
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: .studio-platform/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Studio platform (wrangler + studio-api)
+        working-directory: .studio-platform
+        run: pnpm install --frozen-lockfile
+      - name: Playwright
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock playwright@1.56.1
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: The tracker's own suites
+        env: { HTTPS_PROXY: "http://127.0.0.1:9", HTTP_PROXY: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1,localhost" }
+        run: node build/run-suites.cjs
+      - name: Two devices, offline, against studio-api
+        env: { HTTPS_PROXY: "http://127.0.0.1:9", HTTP_PROXY: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1,localhost", STUDIO_PLATFORM: .studio-platform }
+        run: node e2e/two-devices.cjs
