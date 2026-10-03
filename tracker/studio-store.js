@@ -369,6 +369,8 @@ window.ASTStudio = (function () {
   /** Push then pull; safe to call often. Never throws: problems become a status. */
   function sync() {
     if (!studio) return Promise.resolve();
+    // Signed out by the studio: nothing goes out until the artist signs in again.
+    if (isExpired()) { setStatus('expired', expiredDetail()); return Promise.resolve(); }
     if (syncing) return syncing;
     setStatus('syncing');
     syncing = studio.then(function (st) { return st.sync().then(function () { return st; }); })
@@ -378,7 +380,7 @@ window.ASTStudio = (function () {
         });
       })
       .catch(function (err) {
-        if (err && err.status === 401) { forget('Your studio sign-in has ended. Sign in again to sync.'); return; }
+        if (err && err.status === 401) return expire();
         setStatus('error', err && err.message);
       })
       .then(function () { syncing = null; });
@@ -407,7 +409,29 @@ window.ASTStudio = (function () {
     return studio;
   }
 
-  /** Signed out (by the user or by the server): back to the local-only app. */
+  /* The studio ended the session (it ran out, or was signed out elsewhere).
+     Nothing on this device is dropped: shows and sales stay on screen and can
+     still be changed, every change waits in the outbox, and signing in again
+     as the same person sends them. Only signing out, or signing in as someone
+     else, clears this device's studio copy. */
+  var pendingAtExpiry = 0;
+  function isExpired() { var s = readJSON(STATE_KEY); return !!(s && s.signedIn && s.expired); }
+  function expiredDetail() {
+    return pendingAtExpiry
+      ? pendingAtExpiry + ' change' + (pendingAtExpiry === 1 ? ' is' : 's are') + ' kept on this device until you do.'
+      : '';
+  }
+  function expire() {
+    writeJSON(STATE_KEY, Object.assign({}, readJSON(STATE_KEY) || {}, { expired: true }));
+    return (studio || Promise.resolve(null)).then(function (st) { return st ? st.pendingCount() : 0; })
+      .then(function (n) {
+        pendingAtExpiry = n;
+        setStatus('expired', expiredDetail());
+        emit('session', session());
+      });
+  }
+
+  /** Signed out (by the user, or to make room for someone else): back to the local-only app. */
   function forget(message) {
     var was = studio;
     studio = null;
@@ -432,9 +456,17 @@ window.ASTStudio = (function () {
 
   function verify(email, code) {
     email = String(email || '').trim().toLowerCase();
+    var prev = session();
     return api().verify(email, String(code || '').trim()).then(function (me) {
+      var studioId = me.activeStudioId || null;
+      // Back after an expired sign-in as the same person and studio: keep this
+      // device's copy and its waiting changes. Anyone else starts clean.
+      var same = prev && prev.email === email && (prev.studioId || null) === studioId;
+      return (prev && !same ? forget() : Promise.resolve()).then(function () { return me; });
+    }).then(function (me) {
       writeJSON(STATE_KEY, { signedIn: true, email: email, studioId: me.activeStudioId || null });
-      open();
+      pendingAtExpiry = 0;
+      if (!studio) open();
       emit('session', session());
       return sync().then(function () { emit('change', { types: ['show', 'sale'] }); return me; });
     });
@@ -476,8 +508,9 @@ window.ASTStudio = (function () {
     return { shows: db.shows.filter(live), sales: db.sales.filter(live), seed: false };
   }
 
-  function importExisting() {
+  function importExisting(onProgress) {
     if (!studio) return Promise.reject(new Error('Sign in to the studio first.'));
+    if (isExpired()) return Promise.reject(new Error('Your studio sign-in has ended. Sign in again first.'));
     var plan = importPlan();
     var stamp = new Date().toISOString();
     var showIds = {};
@@ -504,21 +537,28 @@ window.ASTStudio = (function () {
         })).then(function (saleOps) { return showOps.concat(saleOps); });
       }).then(function (ops) {
         var tally = { applied: 0, duplicate: 0, rejected: 0, errors: [] };
-        var batches = [];
-        for (var i = 0; i < ops.length; i += 200) batches.push(ops.slice(i, i + 200));
-        return batches.reduce(function (p, batch) {
-          return p.then(function () {
-            return st.api.push(batch).then(function (res) {
-              res.results.forEach(function (r, j) {
-                if (r.status === 'duplicate') tally.duplicate++;
-                else if (r.status === 'rejected') {
-                  tally.rejected++;
-                  tally.errors.push(batch[j].action + ' ' + ((batch[j].input && (batch[j].input.name || batch[j].input.title)) || '') + ': ' + (r.error && r.error.message));
-                } else tally.applied++;
-              });
+        /* A push answers only its first few ops (the studio's per-request
+           limit, D-050); the rest go again until every op has an answer. */
+        var size = SDK.PUSH_BATCH || 6;
+        var done = 0;
+        function next() {
+          if (done >= ops.length) return Promise.resolve();
+          var batch = ops.slice(done, done + size);
+          return st.api.push(batch).then(function (res) {
+            if (!res.results.length) throw new Error('The studio answered none of the changes');
+            res.results.forEach(function (r, j) {
+              if (r.status === 'duplicate') tally.duplicate++;
+              else if (r.status === 'rejected') {
+                tally.rejected++;
+                tally.errors.push(batch[j].action + ' ' + ((batch[j].input && (batch[j].input.name || batch[j].input.title)) || '') + ': ' + (r.error && r.error.message));
+              } else tally.applied++;
             });
+            done += res.results.length;
+            if (onProgress) onProgress(done, ops.length);
+            return next();
           });
-        }, Promise.resolve()).then(function () {
+        }
+        return next().then(function () {
           var record = { at: stamp, studioId: (session() || {}).studioId || null,
                          shows: plan.shows.length, sales: plan.sales.length,
                          applied: tally.applied, duplicate: tally.duplicate, rejected: tally.rejected };
@@ -559,6 +599,7 @@ window.ASTStudio = (function () {
     status: function () { return status; },
     on: on, attach: attach, sync: sync,
     requestCode: requestCode, verify: verify, signOut: signOut,
+    expired: isExpired,
     pendingCount: function () { return studio ? studio.then(function (st) { return st.pendingCount(); }) : Promise.resolve(0); },
     /** Re-apply this device's value for one field after a review card. */
     useMine: function (type, id, field, value) {

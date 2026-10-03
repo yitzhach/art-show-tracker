@@ -165,12 +165,14 @@
       el('div', { class: 'st-import' }, [impText, el('div', { class: 'btn-row' }, [btnImport]), impResult])
     ]);
 
+    var expiredNote = el('p', { id: 'st_expired', class: 'hint', role: 'status', hidden: true,
+                                style: 'margin:0 0 12px;color:var(--warn);font-weight:600;' });
     var section = el('div', { id: 'studioSection' }, [
       el('h3', { class: 'label', style: 'margin:0 0 6px;', text: 'Studio account' }),
       el('p', { class: 'hint', style: 'margin:0 0 12px;', text: 'Signed in, your shows and sales are kept in your ' +
         'studio and appear on every device you sign in on, with or without signal. Everything else — calendar, ' +
         'applications, expenses, rankings, reviews, debriefs — stays on this device. Contacts never leave it.' }),
-      err, signedOut, signedIn,
+      expiredNote, err, signedOut, signedIn,
       el('hr', { style: 'border:none;border-top:1px solid var(--line);margin:22px 0;' })
     ]);
     body.insertBefore(section, body.firstChild);
@@ -179,8 +181,20 @@
 
     function paint() {
       var sess = S.session();
-      signedOut.hidden = !!sess;
-      signedIn.hidden = !sess;
+      var expired = !!(sess && sess.expired);
+      signedOut.hidden = !!sess && !expired;
+      signedIn.hidden = !sess || expired;
+      expiredNote.hidden = !expired;
+      if (expired) {
+        if (!email.value) email.value = sess.email || '';
+        expiredNote.textContent = 'Your studio sign-in has ended. Your shows and sales are still here, and ' +
+          'anything you change is kept on this device. Sign in again as ' + sess.email + ' to send it.';
+        S.pendingCount().then(function (n) {
+          if (n) expiredNote.textContent = 'Your studio sign-in has ended. ' + n + ' change' + (n === 1 ? ' is' : 's are') +
+            ' waiting on this device, safe. Sign in again as ' + sess.email + ' to send ' + (n === 1 ? 'it' : 'them') + '.';
+        });
+        return;
+      }
       ['supabaseSection', 'btnSaveSettings', 'btnForgetProject'].forEach(function (id) {
         var n = document.getElementById(id);
         if (n) n.hidden = !!sess || (id === 'btnForgetProject' && !A.Settings.getConfig());
@@ -221,7 +235,21 @@
     });
     function verify() {
       fail('');
+      var sess = S.session();
+      var typed = email.value.trim().toLowerCase();
+      // Signing in as someone else while changes wait would drop them: ask first.
+      var check = sess && sess.expired && sess.email !== typed ? S.pendingCount() : Promise.resolve(0);
       btnVerify.disabled = true;
+      check.then(function (n) {
+        if (n && !confirm(n + ' change' + (n === 1 ? '' : 's') + ' made as ' + sess.email + ' have not reached the studio. ' +
+                          'Signing in as ' + typed + ' instead removes ' + (n === 1 ? 'it' : 'them') + ' from this device. Continue?')) {
+          btnVerify.disabled = false;
+          return;
+        }
+        doVerify();
+      });
+    }
+    function doVerify() {
       S.verify(email.value, code.value).then(function () { code.value = ''; paint(); },
         function (e) { fail(e.status === 400 || e.status === 401 ? 'That code did not work. Check it, or ask for a new one.' : 'Could not sign in: ' + (e.message || 'no connection')); })
         .then(function () { btnVerify.disabled = false; });
@@ -239,7 +267,9 @@
       btnImport.disabled = true;
       impResult.hidden = false;
       impResult.textContent = 'Importing…';
-      S.importExisting().then(function (r) {
+      S.importExisting(function (done, total) {
+        impResult.textContent = 'Importing\u2026 ' + done + ' of ' + total;
+      }).then(function (r) {
         var parts = [r.applied + ' added', r.duplicate + ' already in the studio'];
         if (r.rejected) parts.push(r.rejected + ' refused: ' + r.errors.join('; '));
         paint();
@@ -254,7 +284,7 @@
   }
 
   /* ---- "Sync now" buttons on other pages ([data-studio-sync]) ----------- */
-  var SYNC_LABEL = { syncing: 'Syncing\u2026', offline: 'Offline', error: 'Sync problem' };
+  var SYNC_LABEL = { syncing: 'Syncing\u2026', offline: 'Offline', error: 'Sync problem', expired: 'Sign in again' };
   function wireSyncButtons() {
     [].forEach.call(document.querySelectorAll('[data-studio-sync]'), function (b) {
       var flash = null;
@@ -264,18 +294,29 @@
         state = state || S.status();
         b.textContent = SYNC_LABEL[state] || 'Sync now';
         b.dataset.state = state;
-        b.title = state === 'error' ? 'Sync failed: open Account & sync on the ledger for details' : '';
+        b.title = state === 'error' ? 'Sync failed: open Account & sync on the ledger for details'
+          : state === 'expired' ? 'Your studio sign-in has ended; your changes are kept on this device' : '';
         if (state === 'synced' && b.dataset.clicked) {
           b.textContent = 'Synced';
           delete b.dataset.clicked;
           flash = setTimeout(function () { b.textContent = 'Sync now'; }, 2000);
         }
       }
-      b.addEventListener('click', function () { b.dataset.clicked = '1'; S.sync(); });
+      b.addEventListener('click', function () {
+        // Signed out by the studio: take the artist to sign in, not round the same error again.
+        if (S.expired()) { openAccount(); return; }
+        b.dataset.clicked = '1';
+        S.sync();
+      });
       S.on('status', function (e) { paint(e.state); });
       S.on('session', function () { paint(); });
       paint();
     });
+  }
+
+  function openAccount() {
+    if (document.getElementById('settingsDrawer')) { location.hash = ''; location.hash = 'account'; }
+    else location.href = 'index.html#account';
   }
 
   function boot() { mountPanel(); wireSyncButtons(); }

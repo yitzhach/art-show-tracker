@@ -315,6 +315,38 @@ async function controlled(d) {
     check('with no network, the ledger reopens with the studio\'s season', (await two.page.$$('.show-row')).length === 5);
     await two.ctx.setOffline(false);
 
+    /* ==== the studio ends the sign-in: nothing is lost ===================== */
+    console.log('\n-- a sign-in that ends keeps the changes made since');
+    await one.page.goto(ORIGIN + '/index.html', { waitUntil: 'load' });
+    await sync(one);
+    // End the session on the server only (as if it ran out): the browser still holds the cookie.
+    const jar = await one.ctx.cookies();
+    const sess = jar.find(c => c.name === 'studio_session');
+    await fetch(ORIGIN + '/v1/auth/logout', { method: 'POST', headers: { Cookie: 'studio_session=' + sess.value } });
+    await one.page.evaluate(() => AST.Store.upsertSale({ piece: 'Heron after hours', price: 300, showId: '' }));
+    await sync(one);
+    const ended = await one.page.evaluate(async () => ({
+      status: ASTStudio.status(), pending: await ASTStudio.pendingCount(),
+      listed: (await AST.Store.listSales()).some(s => s.piece === 'Heron after hours'),
+      pill: document.querySelector('#syncText').textContent
+    }));
+    check('the studio ending the sign-in leaves the change waiting on the device, not wiped',
+          ended.status === 'expired' && ended.pending === 1 && ended.listed, JSON.stringify(ended));
+    check('and the app says to sign in again', ended.pill === 'Sign in again', ended.pill);
+    await one.page.click('#syncPill');
+    await one.page.waitForSelector('#st_expired:not([hidden])');
+    await one.page.waitForFunction(() => /1 change is waiting/.test(document.querySelector('#st_expired').textContent));
+    check('Account & sync explains that the change is safe and who to sign in as',
+          /Sign in again as owner@/.test(await one.page.textContent('#st_expired')));
+    check('the email is filled in already', (await one.page.inputValue('#st_email')) === EMAIL);
+    await signIn(one);
+    await sync(one);
+    check('signing in again as the same person sends it', (await one.page.evaluate(() => ASTStudio.pendingCount())) === 0 &&
+          (await api(one, '/v1/sales?limit=100')).items.some(s => s.title === 'Heron after hours'));
+    await sync(two);
+    check('and it reaches the other device', (await two.page.evaluate(() => AST.Store.listSales()))
+      .some(s => s.piece === 'Heron after hours'));
+
     const errors = one.errors.concat(two.errors);
     check('no page errors on either device', !errors.length, errors.slice(0, 4).join(' | '));
   } catch (err) {
