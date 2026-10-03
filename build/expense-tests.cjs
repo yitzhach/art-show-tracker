@@ -553,6 +553,71 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
 
   await p.evaluate(() => document.getElementById('saCancel').click());
 
+  /* A sale saved with "No show" while the page shows all shows used to vanish
+     from view as soon as one show was picked. Isaac: warn, don't block. */
+  console.log('\n-- a sale with no show is warned about, not blocked --');
+  const noShow = await p.evaluate(async () => {
+    const $ = s => document.querySelector(s);
+    const sales = () => window.AST.Store.listSales();
+    const before = (await sales()).length;
+    $('#saleAdd').click();
+    $('#saPiece').value = 'No-show warning test';
+    $('#saShow').value = '';
+    $('#saSave').click();
+    await new Promise(r => setTimeout(r, 150));
+    const first = { open: !$('#saModal').hidden, warned: !$('#saNoShow').hidden,
+                    label: $('#saSave').textContent, saved: (await sales()).length - before };
+    const firstShow = $('#saShow').options[1] && $('#saShow').options[1].value;
+    $('#saShow').value = firstShow;
+    $('#saShow').dispatchEvent(new Event('change'));
+    const picked = { warned: !$('#saNoShow').hidden, label: $('#saSave').textContent };
+    $('#saShow').value = '';
+    $('#saSave').click();
+    await new Promise(r => setTimeout(r, 150));
+    const rewarned = !$('#saNoShow').hidden && (await sales()).length === before;
+    $('#saSave').click();
+    await new Promise(r => setTimeout(r, 300));
+    const row = (await sales()).find(r => r.piece === 'No-show warning test');
+    const second = { open: !$('#saModal').hidden, saved: (await sales()).length - before,
+                     showId: row ? row.showId : 'missing' };
+    /* Editing that sale again (still no show) saves on the first press. */
+    /* The page may be looking at one show; the no-show sale is listed under all. */
+    const filter = $('#expShow').value;
+    $('#expShow').value = '';
+    $('#expShow').dispatchEvent(new Event('change'));
+    const rowEl = row && $('#saleList [data-sale="' + row.id + '"]');
+    if (rowEl) {
+      rowEl.click();
+      $('#saNotes').value = 'edited';
+      $('#saSave').click();
+      await new Promise(r => setTimeout(r, 300));
+    }
+    const edit = { open: !$('#saModal').hidden,
+                   notes: ((await sales()).find(r => r.id === (row && row.id)) || {}).notes };
+    if (rowEl) {
+      $('#saleList [data-sale="' + row.id + '"]').click();
+      $('#saDelete').click();
+      await new Promise(r => setTimeout(r, 300));
+    }
+    $('#expShow').value = filter;
+    $('#expShow').dispatchEvent(new Event('change'));
+    const cleaned = !(await sales()).some(r => r.piece === 'No-show warning test');
+    return { first, picked, rewarned, second, edit, cleaned, hasShows: !!firstShow };
+  });
+  check('Save with no show warns first and keeps the editor open, saving nothing',
+        noShow.first.open && noShow.first.warned && noShow.first.saved === 0 &&
+        noShow.first.label === 'Save with no show', JSON.stringify(noShow.first));
+  check('picking a show clears the warning',
+        noShow.hasShows && !noShow.picked.warned && noShow.picked.label === 'Save',
+        JSON.stringify(noShow.picked));
+  check('back to "No show", Save warns again', noShow.rewarned === true);
+  check('"Save with no show" then saves it, with no show',
+        !noShow.second.open && noShow.second.saved === 1 && !noShow.second.showId,
+        JSON.stringify(noShow.second));
+  check('editing a sale that already had no show does not warn again',
+        !noShow.edit.open && noShow.edit.notes === 'edited', JSON.stringify(noShow.edit));
+  check('(the test sale is removed again)', noShow.cleaned === true);
+
   // ---- the page menu -------------------------------------------------------
   console.log('\n-- the menu --');
   const nav = await p.evaluate(() => {
