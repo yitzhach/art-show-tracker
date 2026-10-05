@@ -56,7 +56,46 @@
     if (typeof content === 'string') return content;
     if (!Array.isArray(content)) return '';
     return content.filter(function (b) { return b && b.type === 'text'; })
-      .map(function (b) { return String(b.text).replace(/^\[Context from the app[^\]]*\]\s*/, ''); }).join('\n').trim();
+      .map(function (b) { return String(b.text).replace(/^\[Context from the app[^\]]*\]\s*/, '').replace(/\s*\[\[replies:[^\]]*\]\]\s*$/, ''); }).join('\n').trim();
+  }
+
+  /*
+   * Finish-my-sentence. Two sources, both from this device: what the artist
+   * sent before (the whole message) and names they use (shows, pieces). The
+   * last one to four words typed are matched against the start of a name.
+   * Returns the full text it would become, or null.
+   */
+  function completion(text, said, names) {
+    if (!text || /\s$/.test(text)) return null;
+    var low = text.toLowerCase(), i, j;
+    if (text.length >= 4) {
+      for (i = 0; i < said.length; i++) {
+        if (said[i].length > text.length && said[i].toLowerCase().indexOf(low) === 0) return text + said[i].slice(text.length);
+      }
+    }
+    var starts = [];
+    for (i = 0; i < text.length; i++) if (!/\s/.test(text[i]) && (i === 0 || /\s/.test(text[i - 1]))) starts.push(i);
+    starts = starts.slice(-4);
+    for (i = 0; i < starts.length; i++) {
+      var tail = text.slice(starts[i]), t = tail.toLowerCase();
+      if (t.length < 2) continue;
+      for (j = 0; j < names.length; j++) {
+        if (names[j].length > tail.length && names[j].toLowerCase().indexOf(t) === 0) return text.slice(0, starts[i]) + names[j];
+      }
+    }
+    return null;
+  }
+  var SAID_KEY = 'artShowTracker.assistantSaid';
+  function readSaid() {
+    try { var a = JSON.parse(localStorage.getItem(SAID_KEY) || '[]'); return Array.isArray(a) ? a.filter(function (x) { return typeof x === 'string'; }) : []; }
+    catch (_) { return []; }
+  }
+  function rememberSaid(text) {
+    try {
+      var a = readSaid().filter(function (x) { return x !== text; });
+      a.unshift(text);
+      localStorage.setItem(SAID_KEY, JSON.stringify(a.slice(0, 40)));
+    } catch (_) {}
   }
 
   var CSS = [
@@ -93,7 +132,15 @@
     '.picks[hidden]{display:none}',
     'form{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line,#e5e5e5)}',
     /* 16px or iOS zooms in on focus and never zooms back out. */
-    'textarea{flex:1;font:inherit;font-size:16px;resize:none;padding:8px 10px;border-radius:8px;border:1px solid var(--line,#e5e5e5);background:var(--bg,#fff);color:inherit}',
+    '.compose{position:relative;flex:1;display:flex;border-radius:8px;background:var(--bg,#fff)}',
+    /* The grey finish-my-sentence text sits behind the (transparent) box, in the same font and wrap. */
+    '.ghost,textarea{font:inherit;font-size:16px;line-height:1.4;padding:8px 10px;border:1px solid transparent;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}',
+    '.ghost{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:transparent}',
+    '.ghost .hint{color:var(--muted,#737373)}',
+    'textarea{position:relative;flex:1;resize:none;border-color:var(--line,#e5e5e5);background:transparent;color:inherit}',
+    '.replies{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}',
+    '.replies[hidden]{display:none}',
+    '.replies .hint{width:100%;margin:0;font-size:12px;color:var(--muted,#737373)}',
     '.note{margin:0;padding:0 14px 10px;font-size:14px;color:var(--warn,#b45309)}',
     '.note[hidden]{display:none}',
     '@media (max-width:600px){.panel{left:0;right:0;bottom:0;width:100%;max-height:80vh;border-radius:12px 12px 0 0}}'
@@ -115,9 +162,13 @@
     this.note = el('p', { class: 'note', role: 'status', hidden: true });
     var close = el('button', { class: 'close', type: 'button', 'aria-label': 'Close the assistant', text: '×' });
     var fresh = el('button', { class: 'btn small', type: 'button', text: 'New conversation' });
-    var form = el('form', {}, [this.input, this.sendBtn]);
+    this.ghost = el('div', { class: 'ghost', 'aria-hidden': 'true' });
+    this.replies = el('div', { class: 'replies', hidden: true });
+    var form = el('form', {}, [el('div', { class: 'compose' }, [this.ghost, this.input]), this.sendBtn]);
+    this.said = readSaid();
+    this.names = [];
     this.panel = el('section', { class: 'panel', id: 'panel', role: 'dialog', 'aria-label': 'Studio assistant', hidden: true }, [
-      el('header', {}, [el('h2', { text: 'Studio assistant' }), el('div', { class: 'tools' }, [fresh, close])]), this.log, this.picks, this.note, form
+      el('header', {}, [el('h2', { text: 'Studio assistant' }), el('div', { class: 'tools' }, [fresh, close])]), this.log, this.picks, this.replies, this.note, form
     ]);
     root.appendChild(this.launch);
     root.appendChild(this.panel);
@@ -130,16 +181,83 @@
       self.fresh = true;
       self.log.textContent = '';
       self.picks.hidden = true;
+      self.replies.hidden = true;
+      self.replyItems = [];
       self.setNote('');
       self.say('bot', 'New conversation. What happened?');
       self.input.focus();
     });
     form.addEventListener('submit', function (e) { e.preventDefault(); self.send(self.input.value); });
     this.input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.send(self.input.value); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.send(self.input.value); return; }
+      // Tab takes the grey suggestion, or else the next suggested reply. Otherwise Tab moves on as usual.
+      if (e.key === 'Tab' && !e.shiftKey && self.tab()) e.preventDefault();
     });
+    this.input.addEventListener('input', function () { self.hint(); });
+    this.input.addEventListener('scroll', function () { self.ghost.scrollTop = self.input.scrollTop; });
     if (S) S.on('session', function () { self.paint(); });
     this.paint();
+  };
+
+  /** Names from this device's own data, for finish-my-sentence. */
+  Panel.prototype.loadNames = function () {
+    var self = this, St = window.AST && window.AST.Store;
+    if (!St) return;
+    Promise.all([
+      Promise.resolve(St.list ? St.list() : []).catch(function () { return []; }),
+      Promise.resolve(St.listSales ? St.listSales() : []).catch(function () { return []; })
+    ]).then(function (r) {
+      var seen = {}, out = [];
+      (r[0] || []).map(function (x) { return x && x.name; }).concat((r[1] || []).map(function (x) { return x && x.title; }))
+        .forEach(function (n) {
+          n = String(n || '').trim();
+          if (n.length > 2 && !seen[n.toLowerCase()]) { seen[n.toLowerCase()] = 1; out.push(n); }
+        });
+      self.names = out;
+    });
+  };
+
+  /** Redraws the grey suggestion after what's typed (only with the cursor at the end). */
+  Panel.prototype.hint = function () {
+    var v = this.input.value, at = this.input.selectionStart === v.length;
+    this.suggestion = at ? completion(v, this.said, this.names) : null;
+    this.ghost.textContent = '';
+    if (!this.suggestion) return;
+    this.ghost.appendChild(document.createTextNode(v));
+    this.ghost.appendChild(el('span', { class: 'hint', text: this.suggestion.slice(v.length) }));
+    this.ghost.scrollTop = this.input.scrollTop;
+  };
+
+  Panel.prototype.fill = function (text) {
+    this.input.value = text;
+    this.input.focus();
+    this.input.setSelectionRange(text.length, text.length);
+    this.hint();
+  };
+
+  /** Tab: the grey suggestion first, else cycle through the suggested replies. True if it did something. */
+  Panel.prototype.tab = function () {
+    if (this.suggestion) { this.fill(this.suggestion); return true; }
+    var items = this.replyItems || [];
+    if (this.replies.hidden || !items.length) return false;
+    var v = this.input.value.trim();
+    if (v && items.indexOf(v) < 0) return false;
+    this.fill(items[(items.indexOf(v) + 1) % items.length]);
+    return true;
+  };
+
+  /** The assistant's likely answers to its own question: tap or Tab to put one in the box, then Send. */
+  Panel.prototype.offerReplies = function (items) {
+    var self = this;
+    this.replyItems = items;
+    this.replies.textContent = '';
+    items.forEach(function (t) {
+      var b = el('button', { class: 'btn', type: 'button', text: t });
+      b.addEventListener('click', function () { self.fill(t); });
+      self.replies.appendChild(b);
+    });
+    this.replies.appendChild(el('p', { class: 'hint', text: 'Tab puts the first one in the box; Tab again for the next.' }));
+    this.replies.hidden = false;
   };
 
   /** Shown only while signed in to the studio (and not signed out by it). */
@@ -157,6 +275,7 @@
     if (open) {
       this.input.focus();
       if (!this._loaded) { this._loaded = true; this.load(); }
+      this.loadNames();
     }
   };
 
@@ -178,6 +297,8 @@
         (t && t.messages || []).slice(-12).forEach(function (m) {
           var text = plainText(m.content);
           if (text) self.say(m.role === 'user' ? 'me' : 'bot', text);
+          // What was said on other devices finishes sentences here too.
+          if (m.role === 'user' && text.length >= 8 && self.said.indexOf(text) < 0) self.said.push(text);
         });
         return fetch('/v1/assistant/proposals?status=all', { credentials: 'same-origin' });
       })
@@ -205,8 +326,13 @@
     this.busy = true;
     this.sendBtn.disabled = true;
     this.input.value = '';
+    this.hint();
     this.picks.hidden = true;
     this.picks.textContent = '';
+    this.replies.hidden = true;
+    this.replyItems = [];
+    if (text.length >= 8) { rememberSaid(text); this.said = readSaid(); }
+    var gotReplies = false;
     this.say('me', text);
     var bubble = this.say('bot thinking', 'Thinking…');
     var started = false, acted = false, lastSearch = null;
@@ -219,6 +345,7 @@
       if (e.type === 'text') write(e.text);
       else if (e.type === 'search') lastSearch = e.items;
       else if (e.type === 'card') { acted = true; self.card(e.proposal); }
+      else if (e.type === 'replies') { gotReplies = true; self.offerReplies(e.items || []); }
       else if (e.type === 'done') { acted = true; self.done(e); }
       else if (e.type === 'end') {
         if (e.reason === 'refusal') write(started ? '' : 'I can’t help with that one.');
@@ -226,7 +353,8 @@
         else if (e.reason === 'max_tokens' || e.reason === 'step_limit') write((started ? '\n' : '') + '(I stopped there.)');
         if (!started) bubble.remove();
         // A name that matched several records: offer them as buttons.
-        if (!acted && lastSearch && lastSearch.length > 1 && lastSearch.length <= 6) self.offer(lastSearch);
+        if (!acted && !gotReplies && lastSearch && lastSearch.length > 1 && lastSearch.length <= 6) self.offer(lastSearch);
+        bubble.textContent = bubble.textContent.replace(/\s+$/, '');
       }
     }
     var body = { message: text, app: this.getAttribute('app') || 'studio', today: today(), page: document.title };

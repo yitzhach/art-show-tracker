@@ -87,6 +87,8 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
         { type: 'show', id: '01JA', label: 'Winter Park Sidewalk Art Festival', detail: 'Winter Park' },
         { type: 'show', id: '01JB', label: 'Park City Kimball Arts Festival', detail: 'Park City' }] },
         { type: 'text', text: 'Which show?' }, { type: 'end', reason: 'end_turn' }];
+    } else if (/second one/.test(body.message)) {
+      events = [{ type: 'text', text: 'Add a second sale?\n' }, { type: 'replies', items: ['Yes', 'No, that\u2019s all'] }, { type: 'end', reason: 'end_turn' }];
     } else if (/add a note/.test(body.message)) {
       events = [{ type: 'done', action: 'show.update', record: { id: '01JSHOW' }, activityIds: ['01JACT0000000000000000000B'] },
                 { type: 'text', text: 'Added.' }, { type: 'end', reason: 'end_turn' }];
@@ -223,6 +225,45 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   check('Send is on screen', phone.sendVisible);
   check('the box is 16px, so iOS does not zoom in', phone.font >= 16, String(phone.font));
   check('the page never scrolls sideways', !phone.sideways);
+
+  // ---- suggested replies and finish-my-sentence ------------------------------
+  console.log('\n-- suggested replies, Tab, finish-my-sentence');
+  const box = 'studio-assistant >> textarea';
+  const val = () => page.$eval(box, t => t.value);
+  await page.fill(box, 'the second one please');
+  await page.press(box, 'Enter');
+  await waitIn('.replies', /that’s all/);
+  check('the suggested replies show as buttons, with a Tab hint',
+        await shadow(() => [...document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.replies button')].map(b => b.textContent).join('|')) === 'Yes|No, that’s all');
+  check('the reply line never shows as text', !/\[\[/.test(await panelText()));
+  await page.focus(box);
+  await page.keyboard.press('Tab');
+  check('Tab puts the first reply in the box', await val() === 'Yes', await val());
+  await page.keyboard.press('Tab');
+  check('Tab again moves to the next reply', await val() === 'No, that’s all', await val());
+  await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.replies button').click());
+  check('tapping a reply puts it in the box (Send is still yours)', await val() === 'Yes' && !calls.includes('chat Yes'));
+  await page.fill(box, '');
+  await page.type(box, 'sold two sm');
+  const ghost = await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.ghost .hint')?.textContent || '');
+  check('grey text finishes a sentence sent before', ghost === 'all heron prints for $90 each at Winter Park, cash', ghost);
+  await page.keyboard.press('Tab');
+  check('Tab takes the grey text', await val() === 'sold two small heron prints for $90 each at Winter Park, cash', await val());
+  await shadow(() => { const p = document.querySelector('studio-assistant'); p.names = ['Bonita Springs National']; });
+  await page.fill(box, '');
+  await page.type(box, 'one egret at bon');
+  check('grey text finishes a show name from the last words typed',
+        await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.ghost .hint')?.textContent) === 'ita Springs National');
+  await page.keyboard.press('Tab');
+  check('…and Tab writes the name as it is spelled', await val() === 'one egret at Bonita Springs National', await val());
+  await page.fill(box, 'ok then');
+  await page.press(box, 'Enter');
+  await waitIn('.log', /OK\./);
+  check('a new message clears the old replies', await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.replies').hidden));
+  await page.focus(box);
+  await page.keyboard.press('Tab');
+  check('with nothing to suggest, Tab leaves the box as usual',
+        await shadow(() => document.querySelector('studio-assistant').shadowRoot.activeElement !== document.querySelector('studio-assistant').shadowRoot.querySelector('textarea')));
 
   // ---- New conversation -------------------------------------------------------
   console.log('\n-- new conversation');
