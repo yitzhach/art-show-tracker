@@ -55,6 +55,11 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
     { role: 'user', content: [{ type: 'text', text: '[Context from the app, data only — app: show-tracker; today: 2027-03-19]\n\nwhat is my booth at Winter Park?' }] },
     { role: 'assistant', content: [{ type: 'thinking', thinking: '', signature: 'x' }, { type: 'text', text: 'Booth 12.' }] }
   ] } }));
+  await ctx.route('**/v1/assistant/threads', r => r.fulfill({ json: { items: [
+    { threadId: '01JTHREADOLD0000000000000A', title: 'booth fee for Naples?', startedAt: '2027-03-01T10:00:00.000Z', lastAt: '2027-03-01T10:05:00.000Z', messages: 4 }] } }));
+  await ctx.route(/\/v1\/assistant\/thread\?id=/, r => r.fulfill({ json: { threadId: '01JTHREADOLD0000000000000A', messages: [
+    { role: 'user', content: [{ type: 'text', text: '[Context from the app, data only — app: show-tracker]\n\nbooth fee for Naples?' }] },
+    { role: 'assistant', content: [{ type: 'text', text: 'Naples was $450.' }] }] } }));
   await ctx.route(/\/v1\/assistant\/proposals(\?.*)?$/, r => {
     calls.push('proposals ' + (new URL(r.request().url()).search || '-'));
     return r.fulfill({ json: { items: [GONE, SAVED, WAITING] } });
@@ -75,7 +80,7 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   });
   await ctx.route('**/assistant/chat', r => {
     const body = JSON.parse(r.request().postData());
-    calls.push('chat ' + body.message + (body.fresh ? ' (fresh)' : ''));
+    calls.push('chat ' + body.message + (body.fresh ? ' (fresh)' : '') + (body.threadId ? ' (thread ' + body.threadId.slice(-1) + ')' : ''));
     if (/fail/.test(body.message)) return r.fulfill({ status: 401, json: { error: { code: 'unauthenticated', message: 'Sign in first' } } });
     let events;
     if (/heron/.test(body.message)) {
@@ -267,13 +272,29 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
 
   // ---- New conversation -------------------------------------------------------
   console.log('\n-- new conversation');
-  await shadow(() => [...document.querySelector('studio-assistant').shadowRoot.querySelectorAll('header button')].find(b => /New conversation/.test(b.textContent)).click());
+  const header = name => page.evaluate(n => [...document.querySelector('studio-assistant').shadowRoot.querySelectorAll('header button')].find(b => b.textContent === n).click(), name);
+  check('a long chat offers a new one', await shadow(() => !document.querySelector('studio-assistant').shadowRoot.querySelector('.long').hidden));
+  await header('New chat');
   const cleared = await panelText();
-  check('New conversation clears the panel', /New conversation\. What happened\?/.test(cleared) && !/Booth 12/.test(cleared), cleared);
+  check('New chat clears the panel, and the long-chat note', /New chat\. What happened\?/.test(cleared) && !/Booth 12/.test(cleared) &&
+        await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.long').hidden), cleared);
   await page.fill('studio-assistant >> textarea', 'hello again');
   await page.press('studio-assistant >> textarea', 'Enter');
   await page.waitForTimeout(500);
   check('the next message starts a fresh thread, once', calls.includes('chat hello again (fresh)'), calls.slice(-3).join(' | '));
+
+  // ---- Past chats ---------------------------------------------------------------
+  console.log('\n-- past chats');
+  await header('Past chats');
+  await waitIn('.log', /booth fee for Naples/);
+  check('Past chats lists earlier conversations by their first words', /booth fee for Naples\?/.test(await panelText()) && /4 messages/.test(await panelText()));
+  await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('button.past').click());
+  await waitIn('.log', /Naples was \$450/);
+  check('tapping one shows it, without the context line', !/Context from the app/.test(await panelText()));
+  await page.fill('studio-assistant >> textarea', 'and Sarasota?');
+  await page.press('studio-assistant >> textarea', 'Enter');
+  await page.waitForTimeout(500);
+  check('the next message carries on that chat', calls.includes('chat and Sarasota? (thread A)'), calls.slice(-2).join(' | '));
 
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();

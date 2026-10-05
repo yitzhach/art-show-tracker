@@ -138,6 +138,11 @@
     '.ghost{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:transparent}',
     '.ghost .hint{color:var(--muted,#737373)}',
     'textarea{position:relative;flex:1;resize:none;border-color:var(--line,#e5e5e5);background:transparent;color:inherit}',
+    '.long{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 14px 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--line,#e5e5e5);font-size:14px}',
+    '.long[hidden]{display:none}',
+    '.long p{margin:0;flex:1 1 200px}',
+    'button.past{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin-top:6px;text-align:left}',
+    'button.past small{color:var(--muted,#737373);font-size:12px}',
     '.replies{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}',
     '.replies[hidden]{display:none}',
     '.replies .hint{width:100%;margin:0;font-size:12px;color:var(--muted,#737373)}',
@@ -161,14 +166,20 @@
     this.sendBtn = el('button', { class: 'btn primary', type: 'submit', text: 'Send' });
     this.note = el('p', { class: 'note', role: 'status', hidden: true });
     var close = el('button', { class: 'close', type: 'button', 'aria-label': 'Close the assistant', text: '×' });
-    var fresh = el('button', { class: 'btn small', type: 'button', text: 'New conversation' });
+    var fresh = el('button', { class: 'btn small', type: 'button', text: 'New chat' });
+    var past = el('button', { class: 'btn small', type: 'button', text: 'Past chats' });
+    // A long chat costs more per message (all of it is sent each time): offer a fresh one.
+    var restart = el('button', { class: 'btn small', type: 'button', text: 'Start a new chat' });
+    this.long = el('div', { class: 'long', hidden: true }, [
+      el('p', { text: 'This chat is getting long, and every message re-sends all of it. A new chat costs less; this one stays in Past chats.' }), restart
+    ]);
     this.ghost = el('div', { class: 'ghost', 'aria-hidden': 'true' });
     this.replies = el('div', { class: 'replies', hidden: true });
     var form = el('form', {}, [el('div', { class: 'compose' }, [this.ghost, this.input]), this.sendBtn]);
     this.said = readSaid();
     this.names = [];
     this.panel = el('section', { class: 'panel', id: 'panel', role: 'dialog', 'aria-label': 'Studio assistant', hidden: true }, [
-      el('header', {}, [el('h2', { text: 'Studio assistant' }), el('div', { class: 'tools' }, [fresh, close])]), this.log, this.picks, this.replies, this.note, form
+      el('header', {}, [el('h2', { text: 'Studio assistant' }), el('div', { class: 'tools' }, [past, fresh, close])]), this.log, this.long, this.picks, this.replies, this.note, form
     ]);
     root.appendChild(this.launch);
     root.appendChild(this.panel);
@@ -176,17 +187,16 @@
     this.launch.addEventListener('click', function () { self.toggle(); });
     close.addEventListener('click', function () { self.toggle(false); });
     // Forget the conversation (the model starts clean); saved records stay saved.
-    fresh.addEventListener('click', function () {
+    function startNew() {
       if (self.busy) return;
+      self.clear();
       self.fresh = true;
-      self.log.textContent = '';
-      self.picks.hidden = true;
-      self.replies.hidden = true;
-      self.replyItems = [];
-      self.setNote('');
-      self.say('bot', 'New conversation. What happened?');
+      self.say('bot', 'New chat. What happened?');
       self.input.focus();
-    });
+    }
+    fresh.addEventListener('click', startNew);
+    restart.addEventListener('click', startNew);
+    past.addEventListener('click', function () { if (!self.busy) self.listPast(); });
     form.addEventListener('submit', function (e) { e.preventDefault(); self.send(self.input.value); });
     this.input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.send(self.input.value); return; }
@@ -197,6 +207,76 @@
     this.input.addEventListener('scroll', function () { self.ghost.scrollTop = self.input.scrollTop; });
     if (S) S.on('session', function () { self.paint(); });
     this.paint();
+  };
+
+  /** Empties the panel (not the studio: every chat stays saved). */
+  Panel.prototype.clear = function () {
+    this.log.textContent = '';
+    this.picks.hidden = true;
+    this.replies.hidden = true;
+    this.replyItems = [];
+    this.long.hidden = true;
+    this.turns = 0;
+    this.threadId = null;
+    this.fresh = false;
+    this.setNote('');
+  };
+
+  /** Counts what the artist said in this chat; past LONG_CHAT, suggests a new one. */
+  var LONG_CHAT = 8;
+  Panel.prototype.count = function (n) {
+    this.turns = (this.turns || 0) + n;
+    this.long.hidden = this.turns < LONG_CHAT;
+  };
+
+  /** Shows one chat's messages (the current one, or a past one by id). */
+  Panel.prototype.show = function (t) {
+    var self = this, n = 0;
+    (t && t.messages || []).slice(-12).forEach(function (m) {
+      var text = plainText(m.content);
+      if (text) self.say(m.role === 'user' ? 'me' : 'bot', text);
+      if (m.role === 'user' && text) n++;
+      // What was said on other devices finishes sentences here too.
+      if (m.role === 'user' && text.length >= 8 && self.said.indexOf(text) < 0) self.said.push(text);
+    });
+    this.count(n);
+  };
+
+  /** Past chats, newest first: tap one to read it; the next message continues it. */
+  Panel.prototype.listPast = function () {
+    var self = this;
+    this.clear();
+    var box = el('div', { class: 'card' }, [el('h3', { text: 'Past chats' })]);
+    this.log.appendChild(box);
+    var status = el('p', { class: 'status', text: 'Loading…' });
+    box.appendChild(status);
+    fetch('/v1/assistant/threads', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var items = d && d.items || [];
+        status.textContent = items.length ? '' : 'No chats yet.';
+        items.forEach(function (it) {
+          var when = new Date(it.lastAt);
+          var b = el('button', { class: 'btn past', type: 'button' }, [
+            el('span', { text: it.title }),
+            el('small', { text: when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' + it.messages + ' messages' })
+          ]);
+          b.addEventListener('click', function () { self.openPast(it.threadId); });
+          box.appendChild(b);
+        });
+      }, function () { status.textContent = 'Couldn’t load past chats. Try again with a connection.'; });
+  };
+
+  Panel.prototype.openPast = function (id) {
+    var self = this;
+    fetch('/v1/assistant/thread?id=' + encodeURIComponent(id), { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (t) {
+        if (!t) return self.setNote('That chat could not be opened.');
+        self.clear();
+        self.threadId = id;
+        self.show(t);
+        self.say('bot', 'This is an earlier chat. Send a message to carry on with it, or tap New chat.');
+      });
   };
 
   /** Names from this device's own data, for finish-my-sentence. */
@@ -294,12 +374,7 @@
     if (!navigator.onLine) return;
     return fetch('/v1/assistant/thread', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (t) {
-        (t && t.messages || []).slice(-12).forEach(function (m) {
-          var text = plainText(m.content);
-          if (text) self.say(m.role === 'user' ? 'me' : 'bot', text);
-          // What was said on other devices finishes sentences here too.
-          if (m.role === 'user' && text.length >= 8 && self.said.indexOf(text) < 0) self.said.push(text);
-        });
+        self.show(t);
         return fetch('/v1/assistant/proposals?status=all', { credentials: 'same-origin' });
       })
       .then(function (r) { return r && r.ok ? r.json() : null; })
@@ -359,6 +434,8 @@
     }
     var body = { message: text, app: this.getAttribute('app') || 'studio', today: today(), page: document.title };
     if (this.fresh) { body.fresh = true; this.fresh = false; }
+    else if (this.threadId) body.threadId = this.threadId;
+    this.count(1);
     fetch('/assistant/chat', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (res) {
         if (!res.ok) {
