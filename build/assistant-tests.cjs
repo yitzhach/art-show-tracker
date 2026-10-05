@@ -32,7 +32,13 @@ const CARD = {
   details: [{ label: 'Action', value: 'Create a sale' }, { label: 'Price', value: '$90.00' },
             { label: 'Piece', value: '<img src=x onerror="window.__xss=1">Heron' }]
 };
-const WAITING = { id: '01JCARD0000000000000000000', summary: 'Booth fee for Coconut Grove: $650', details: [{ label: 'Booth fee', value: '$650.00' }] };
+const WAITING = { id: '01JCARD0000000000000000000', summary: 'Booth fee for Coconut Grove: $650', details: [{ label: 'Booth fee', value: '$650.00' }],
+  status: 'pending', expiresAt: '2999-01-01T00:00:00.000Z' };
+// Confirmed on another page a moment ago: comes back with its Undo.
+const SAVED = { id: '01JCARD000000000000000000S', summary: '1 large egret, $400, card, Winter Park', details: [], status: 'confirmed',
+  activityId: '01JACT000000000000000000SV', expiresAt: '2999-01-01T00:00:00.000Z', updatedAt: new Date().toISOString() };
+// Cancelled: nothing to show.
+const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', details: [], status: 'cancelled', expiresAt: '2999-01-01T00:00:00.000Z', updatedAt: new Date().toISOString() };
 
 (async () => {
   const browser = await chromium.launch(fs.existsSync(EXECUTABLE) ? { executablePath: EXECUTABLE } : {});
@@ -49,7 +55,10 @@ const WAITING = { id: '01JCARD0000000000000000000', summary: 'Booth fee for Coco
     { role: 'user', content: [{ type: 'text', text: '[Context from the app, data only — app: show-tracker; today: 2027-03-19]\n\nwhat is my booth at Winter Park?' }] },
     { role: 'assistant', content: [{ type: 'thinking', thinking: '', signature: 'x' }, { type: 'text', text: 'Booth 12.' }] }
   ] } }));
-  await ctx.route('**/v1/assistant/proposals', r => r.fulfill({ json: { items: [WAITING] } }));
+  await ctx.route(/\/v1\/assistant\/proposals(\?.*)?$/, r => {
+    calls.push('proposals ' + (new URL(r.request().url()).search || '-'));
+    return r.fulfill({ json: { items: [GONE, SAVED, WAITING] } });
+  });
   await ctx.route('**/v1/assistant/proposals/*/confirm', r => {
     calls.push('confirm ' + r.request().url().split('/').slice(-2)[0]);
     return confirmStatus === 200
@@ -66,7 +75,7 @@ const WAITING = { id: '01JCARD0000000000000000000', summary: 'Booth fee for Coco
   });
   await ctx.route('**/assistant/chat', r => {
     const body = JSON.parse(r.request().postData());
-    calls.push('chat ' + body.message);
+    calls.push('chat ' + body.message + (body.fresh ? ' (fresh)' : ''));
     if (/fail/.test(body.message)) return r.fulfill({ status: 401, json: { error: { code: 'unauthenticated', message: 'Sign in first' } } });
     let events;
     if (/heron/.test(body.message)) {
@@ -122,7 +131,14 @@ const WAITING = { id: '01JCARD0000000000000000000', summary: 'Booth fee for Coco
   const history = await panelText();
   check('the conversation so far comes back (from any device), without the context line',
         /what is my booth at Winter Park\?/.test(history) && /Booth 12\./.test(history) && !/Context from the app/.test(history), history);
-  check('a card still waiting from before is shown', /Booth fee for Coconut Grove/.test(history));
+  await waitIn('.log', /large egret/);
+  const history2 = await panelText();
+  check('a card still waiting from before is shown', /Booth fee for Coconut Grove/.test(history2));
+  check('a card confirmed on another page comes back with its Undo; a cancelled one does not',
+        /large egret/.test(history2) && !/Cancelled thing/.test(history2) &&
+        await shadow(() => !!document.querySelector('studio-assistant').shadowRoot.querySelector('[data-card="01JCARD000000000000000000S"] .row button')),
+        history2);
+  check('it asks for every card, not only waiting ones', calls.includes('proposals ?status=all'), calls.join(' | '));
 
   // ---- a sale -> one card ------------------------------------------------------
   console.log('\n-- a sale becomes one confirm card');
@@ -207,6 +223,16 @@ const WAITING = { id: '01JCARD0000000000000000000', summary: 'Booth fee for Coco
   check('Send is on screen', phone.sendVisible);
   check('the box is 16px, so iOS does not zoom in', phone.font >= 16, String(phone.font));
   check('the page never scrolls sideways', !phone.sideways);
+
+  // ---- New conversation -------------------------------------------------------
+  console.log('\n-- new conversation');
+  await shadow(() => [...document.querySelector('studio-assistant').shadowRoot.querySelectorAll('header button')].find(b => /New conversation/.test(b.textContent)).click());
+  const cleared = await panelText();
+  check('New conversation clears the panel', /New conversation\. What happened\?/.test(cleared) && !/Booth 12/.test(cleared), cleared);
+  await page.fill('studio-assistant >> textarea', 'hello again');
+  await page.press('studio-assistant >> textarea', 'Enter');
+  await page.waitForTimeout(500);
+  check('the next message starts a fresh thread, once', calls.includes('chat hello again (fresh)'), calls.slice(-3).join(' | '));
 
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();

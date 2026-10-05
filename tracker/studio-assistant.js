@@ -70,6 +70,8 @@
     '.panel[hidden]{display:none}',
     'header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line,#e5e5e5)}',
     'h2{margin:0;font-size:15px}',
+    '.tools{display:flex;align-items:center;gap:4px}',
+    'button.small{font-size:13px;padding:4px 10px}',
     '.close{font:inherit;font-size:20px;line-height:1;border:none;background:none;color:inherit;cursor:pointer;padding:4px 8px}',
     '.log{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.45}',
     '.msg{margin:0;max-width:90%;padding:8px 11px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}',
@@ -112,15 +114,26 @@
     this.sendBtn = el('button', { class: 'btn primary', type: 'submit', text: 'Send' });
     this.note = el('p', { class: 'note', role: 'status', hidden: true });
     var close = el('button', { class: 'close', type: 'button', 'aria-label': 'Close the assistant', text: '×' });
+    var fresh = el('button', { class: 'btn small', type: 'button', text: 'New conversation' });
     var form = el('form', {}, [this.input, this.sendBtn]);
     this.panel = el('section', { class: 'panel', id: 'panel', role: 'dialog', 'aria-label': 'Studio assistant', hidden: true }, [
-      el('header', {}, [el('h2', { text: 'Studio assistant' }), close]), this.log, this.picks, this.note, form
+      el('header', {}, [el('h2', { text: 'Studio assistant' }), el('div', { class: 'tools' }, [fresh, close])]), this.log, this.picks, this.note, form
     ]);
     root.appendChild(this.launch);
     root.appendChild(this.panel);
 
     this.launch.addEventListener('click', function () { self.toggle(); });
     close.addEventListener('click', function () { self.toggle(false); });
+    // Forget the conversation (the model starts clean); saved records stay saved.
+    fresh.addEventListener('click', function () {
+      if (self.busy) return;
+      self.fresh = true;
+      self.log.textContent = '';
+      self.picks.hidden = true;
+      self.setNote('');
+      self.say('bot', 'New conversation. What happened?');
+      self.input.focus();
+    });
     form.addEventListener('submit', function (e) { e.preventDefault(); self.send(self.input.value); });
     this.input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.send(self.input.value); }
@@ -166,10 +179,17 @@
           var text = plainText(m.content);
           if (text) self.say(m.role === 'user' ? 'me' : 'bot', text);
         });
-        return fetch('/v1/assistant/proposals', { credentials: 'same-origin' });
+        return fetch('/v1/assistant/proposals?status=all', { credentials: 'same-origin' });
       })
       .then(function (r) { return r && r.ok ? r.json() : null; })
-      .then(function (list) { (list && list.items || []).forEach(function (p) { self.card(p); }); })
+      .then(function (list) {
+        var now = new Date().toISOString(), since = new Date(Date.now() - 12 * 3600e3).toISOString();
+        // Oldest first, like the conversation: cards still waiting, and recent saves with their Undo.
+        (list && list.items || []).slice().reverse().forEach(function (p) {
+          if (p.status === 'pending' && p.expiresAt > now) self.card(p);
+          else if (p.status === 'confirmed' && p.activityId && p.updatedAt > since) self.saved(p);
+        });
+      })
       .catch(function () {});
   };
 
@@ -210,6 +230,7 @@
       }
     }
     var body = { message: text, app: this.getAttribute('app') || 'studio', today: today(), page: document.title };
+    if (this.fresh) { body.fresh = true; this.fresh = false; }
     fetch('/assistant/chat', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (res) {
         if (!res.ok) {
@@ -290,6 +311,15 @@
         status.textContent = 'Cancelled. Nothing was saved.';
       }, function (e) { busy(false); status.textContent = e.message; });
     });
+  };
+
+  /** A card confirmed earlier (another page, another device): what it saved, with Undo. */
+  Panel.prototype.saved = function (p) {
+    if (this.log.querySelector('[data-card="' + p.id + '"]')) return;
+    var status = el('p', { class: 'status', role: 'status', text: 'Saved.' });
+    var box = el('div', { class: 'card', 'data-card': p.id }, [el('h3', { text: 'Saved' }), el('p', { class: 'sum', text: p.summary || '' }), status]);
+    this.log.appendChild(box);
+    this.undo(box, status, p.activityId);
   };
 
   /** Something the studio lets the assistant do on its own: it is saved, with Undo. */
