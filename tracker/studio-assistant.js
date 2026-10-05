@@ -73,7 +73,8 @@
     '.close{font:inherit;font-size:20px;line-height:1;border:none;background:none;color:inherit;cursor:pointer;padding:4px 8px}',
     '.log{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.45}',
     '.msg{margin:0;max-width:90%;padding:8px 11px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}',
-    '.me{align-self:flex-end;background:var(--accent-soft,#eef2ff)}',
+    /* The bubble stays light in dark mode, so its text stays dark. */
+    '.me{align-self:flex-end;background:var(--accent-soft,#eef2ff);color:#1e1b4b}',
     '.bot{align-self:flex-start;background:var(--bg,#f5f5f5)}',
     '.bot.thinking{color:var(--muted,#737373)}',
     '.card{border:1px solid var(--line,#e5e5e5);border-radius:10px;padding:10px 12px;background:var(--surface,#fff)}',
@@ -201,7 +202,7 @@
       else if (e.type === 'done') { acted = true; self.done(e); }
       else if (e.type === 'end') {
         if (e.reason === 'refusal') write(started ? '' : 'I can’t help with that one.');
-        else if (e.reason === 'error') write((started ? '\n' : '') + 'Something went wrong, and nothing more was saved. Try again in a moment.');
+        else if (e.reason === 'error') write((started ? '\n' : '') + 'Something went wrong, and nothing more was saved. Try again in a moment.' + (e.message ? '\n(' + String(e.message).slice(0, 300) + ')' : ''));
         else if (e.reason === 'max_tokens' || e.reason === 'step_limit') write((started ? '\n' : '') + '(I stopped there.)');
         if (!started) bubble.remove();
         // A name that matched several records: offer them as buttons.
