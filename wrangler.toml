@@ -15,13 +15,19 @@ compatibility_date = "2026-08-15"
 directory = "tracker"
 binding = "ASSETS"
 html_handling = "none"
-run_worker_first = ["/v1/*", "/"]
+run_worker_first = ["/v1/*", "/assistant/*", "/"]
 
 # /v1/* goes to the studio API on the same origin (first-party session cookie,
 # no CORS). The API lives in yitzhach/Art-Talk-Back.
 [[services]]
 binding = "API"
 service = "studio-api"
+
+# /assistant/* goes to the studio assistant (Art-Talk-Back, Phase 3), same origin.
+# studio-assistant must be deployed before this file reaches main.
+[[services]]
+binding = "ASSISTANT"
+service = "studio-assistant"
 
 # Staging: a separate Worker against the staging API. Deployed by Art-Talk-Back's
 # "Deploy staging" workflow; never by the Git integration.
@@ -31,6 +37,10 @@ name = "studio-show-tracker-staging"
 [[env.staging.services]]
 binding = "API"
 service = "studio-api-staging"
+
+[[env.staging.services]]
+binding = "ASSISTANT"
+service = "studio-assistant-staging"
 
 # Branch previews (Cloudflare runs `wrangler preview` for non-main branches).
 # Previews don't get service bindings, so a preview serves the app but its

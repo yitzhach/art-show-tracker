@@ -29,8 +29,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
-<link rel="stylesheet" href="app.css?v=5888c036">
-<link rel="stylesheet" href="intel.css?v=5888c036">
+<link rel="stylesheet" href="app.css?v=f073919d">
+<link rel="stylesheet" href="intel.css?v=f073919d">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -382,17 +382,18 @@
 
 <p class="exp-foot" id="buildStamp"></p>
 
-<script src="core.js?v=5888c036"></script>
-<script src="pwa.js?v=5888c036"></script>
-<script src="studio-sdk.js?v=5888c036"></script>
-<script src="studio-store.js?v=5888c036"></script>
-<script src="studio-ui.js?v=5888c036"></script>
-<script src="nav.js?v=5888c036"></script>
-<script src="version.js?v=5888c036"></script>
-<script src="expenses.js?v=5888c036"></script>
-<script src="sales.js?v=5888c036"></script>
-<script src="plan.js?v=5888c036"></script>
-<script src="store-supabase.js?v=5888c036"></script>
+<script src="core.js?v=f073919d"></script>
+<script src="pwa.js?v=f073919d"></script>
+<script src="studio-sdk.js?v=f073919d"></script>
+<script src="studio-store.js?v=f073919d"></script>
+<script src="studio-ui.js?v=f073919d"></script>
+<script src="studio-assistant.js?v=f073919d"></script>
+<script src="nav.js?v=f073919d"></script>
+<script src="version.js?v=f073919d"></script>
+<script src="expenses.js?v=f073919d"></script>
+<script src="sales.js?v=f073919d"></script>
+<script src="plan.js?v=f073919d"></script>
+<script src="store-supabase.js?v=f073919d"></script>
 <script type="module">
 'use strict';
 /* ==========================================================================
@@ -1022,5 +1023,6 @@ window.ASTVersion.mount(document.getElementById('buildStamp'));
 /* One menu on every page, mounted first in the header. */
 window.ASTNav.auto();
 </script>
+<studio-assistant app="show-tracker"></studio-assistant>
 </body>
 </html>

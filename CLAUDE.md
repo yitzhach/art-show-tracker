@@ -105,6 +105,10 @@ fully without any of them, and from `file://` the studio is off entirely.
 - `studio-store.js` / `studio-ui.js` — the studio backend for shows + sales,
   "Import my existing data", sign-in, review/refused cards. Every other
   collection stays in localStorage; contacts never leave the device.
+- `studio-assistant.js` — `<studio-assistant>`, the assistant panel (Phase 3): streams
+  replies from `/assistant/chat` (forwarded to the `studio-assistant` Worker), shows
+  confirm cards that save only on Confirm, Undo, and buttons when a name matches
+  several records. Only while signed in to the studio.
 - `studio-sdk.js` — vendored, generated in Art-Talk-Back
   (`pnpm --filter @studio/sdk bundle:classic`). Never edit by hand.
 - `sw.js`, `pwa.js`, `manifest.webmanifest` — installable app shell (offline).
@@ -126,6 +130,7 @@ node build/expense-tests.cjs
 node build/jury-tests.cjs
 node build/contacts-tests.cjs
 node build/route-tests.cjs                  # pure node, no server
+node build/assistant-tests.cjs              # the assistant panel, studio answers mocked
 node build/run-suites.cjs                   # all of the above + pwa + studio
 STUDIO_PLATFORM=../Art-Talk-Back node e2e/two-devices.cjs   # offline sync, 2 devices
 cd worker && npm test
