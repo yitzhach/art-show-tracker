@@ -264,6 +264,9 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   await page.fill(box, 'ok then');
   await page.press(box, 'Enter');
   await waitIn('.log', /OK\./);
+  // "OK." is already in the log from an earlier turn, so also wait for this
+  // turn to finish: New chat below is ignored while the panel is busy.
+  await page.waitForFunction(() => !document.querySelector('studio-assistant').busy);
   check('a new message clears the old replies', await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.replies').hidden));
   await page.focus(box);
   await page.keyboard.press('Tab');
