@@ -204,15 +204,62 @@
     var out = [], N = window.ASTNav;
     if (N && N.PAGES) out.push('Pages (the menu at the top right): ' + N.PAGES.map(function (p) { return p.label + ' — ' + p.note; }).join('; '));
     var seen = {}, here = [];
-    document.querySelectorAll('header button, header a, main button, main a, main input, main select, nav button, .header-actions button').forEach(function (n) {
+    document.querySelectorAll(CONTROLS).forEach(function (n) {
       if (n.closest('studio-assistant') || n.closest('[hidden]')) return;
-      var t = (n.getAttribute('aria-label') || n.getAttribute('title') || n.textContent || n.getAttribute('placeholder') || '').replace(/\s+/g, ' ').trim();
+      var t = labelOf(n);
       if (!t || t.length > 60 || seen[t]) return;
       seen[t] = 1;
       here.push(t);
     });
     if (here.length) out.push('On this page (' + document.title + '): ' + here.join(', '));
     return out.join('\n').slice(0, 15000);
+  }
+
+  /* The controls the map lists, by the same labels (appMap reads these too). */
+  var CONTROLS = 'header button, header a, main button, main a, main input, main select, nav button, .header-actions button';
+  function labelOf(n) { return (n.getAttribute('aria-label') || n.getAttribute('title') || n.textContent || n.getAttribute('placeholder') || '').replace(/\s+/g, ' ').trim(); }
+  // "Money — Expenses, …" is the page Money; "+ Add show" is Add show.
+  function fold(t) { return String(t || '').split(' \u2014 ')[0].replace(/\s+/g, ' ').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase(); }
+  var PENDING = 'artShowTracker.assistantShow';
+
+  /** Scrolls to the control named `name` on this page, focuses and outlines it. Presses nothing. */
+  function showControl(name) {
+    var want = fold(name), hit = null;
+    if (!want) return false;
+    document.querySelectorAll(CONTROLS).forEach(function (n) {
+      if (hit || n.closest('studio-assistant') || n.closest('[hidden]')) return;
+      if (fold(labelOf(n)) === want) hit = n;
+    });
+    if (!hit) return false;
+    hit.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    try { hit.focus({ preventScroll: true }); } catch (_) {}
+    var st = hit.style, was = [st.outline, st.outlineOffset];
+    st.outline = '3px solid var(--accent, #d97706)'; st.outlineOffset = '3px';
+    hit.setAttribute('data-assistant-shown', '');
+    setTimeout(function () { st.outline = was[0]; st.outlineOffset = was[1]; hit.removeAttribute('data-assistant-shown'); }, 2500);
+    return true;
+  }
+
+  /*
+   * "Take me to …" (Art-Talk-Back D-075): `place` and `control` come from the
+   * map. A page in the menu is opened (a control on it is shown once it has
+   * loaded); a control on this page is shown. Nothing is pressed or changed.
+   * Returns false when the map's names match nothing here.
+   */
+  function openPlace(place, control) {
+    var pages = (window.ASTNav && window.ASTNav.PAGES) || [];
+    var here = String(location.pathname).split('/').pop() || 'index.html';
+    var names = [control, place].filter(Boolean);
+    for (var i = 0; i < names.length; i++) {
+      var page = pages.filter(function (p) { return fold(p.label) === fold(names[i]); })[0];
+      if (!page) continue;
+      var rest = names[i] === control ? null : control;
+      if (page.file === here) { if (rest) showControl(rest); return true; }
+      try { if (rest) sessionStorage.setItem(PENDING, rest); else sessionStorage.removeItem(PENDING); } catch (_) {}
+      location.href = page.file;
+      return true;
+    }
+    return names.some(showControl);
   }
 
   class Panel extends HTMLElement {}
@@ -560,6 +607,13 @@
       else if (e.type === 'card') { acted = true; self.card(e.proposal); }
       else if (e.type === 'replies') { gotReplies = true; self.offerReplies(e.items || []); }
       else if (e.type === 'done') { acted = true; self.done(e); }
+      else if (e.type === 'open') {
+        // "Take me to …": the page shows the place; nothing changes. On a phone the
+        // panel shrinks to its bar so what it showed isn't under it (not saved).
+        var shown = openPlace(e.place, e.control);
+        if (shown && window.innerWidth <= 600 && self.where && !self.where.min) self.place({ x: self.where.x, y: self.where.y, w: self.where.w, h: self.where.h, min: true });
+        if (!shown) self.setNote('Couldn\u2019t find ' + (e.control || e.place) + ' here.');
+      }
       else if (e.type === 'end') {
         if (e.reason === 'refusal') write(started ? '' : 'I can’t help with that one.');
         else if (e.reason === 'error') write((started ? '\n' : '') + 'Something went wrong, and nothing more was saved. Try again in a moment.' + (e.message ? '\n(' + String(e.message).slice(0, 300) + ')' : ''));
@@ -572,6 +626,7 @@
     }
     var body = { message: text, app: this.getAttribute('app') || 'studio', today: today(), page: document.title };
     try { var map = appMap(); if (map) body.appMap = map; } catch (_) {}
+    body.commands = ['open']; // this app can show a place when asked (D-075)
     if (this.fresh) { body.fresh = true; this.fresh = false; }
     else if (this.threadId) body.threadId = this.threadId;
     this.count(1);
@@ -693,5 +748,12 @@
   // For the test harness: the place arithmetic and the map the assistant is sent.
   Panel.clampPlace = clampPlace;
   Panel.appMap = appMap;
+  Panel.openPlace = openPlace;
+  // A control asked for on another page is shown once that page has loaded.
+  window.addEventListener('load', function () {
+    var name = null;
+    try { name = sessionStorage.getItem(PENDING); sessionStorage.removeItem(PENDING); } catch (_) {}
+    if (name) setTimeout(function () { showControl(name); }, 300);
+  });
   customElements.define('studio-assistant', Panel);
 })();
