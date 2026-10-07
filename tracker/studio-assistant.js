@@ -104,18 +104,27 @@
     ':host([hidden]){display:none}',
     '.launch{font:inherit;font-size:15px;font-weight:600;padding:10px 16px;border-radius:999px;border:1px solid var(--line,#e5e5e5);',
     'background:var(--surface,#fff);color:inherit;box-shadow:var(--shadow,0 6px 24px rgba(0,0,0,.14));cursor:pointer}',
-    '.panel{position:fixed;left:16px;bottom:72px;width:min(420px,calc(100vw - 32px));max-height:min(70vh,640px);display:flex;flex-direction:column;',
+    /* A pop-up the artist drags by its title bar, resizes from the corner and
+       shrinks to the bar; place() sets left, top, width and height. */
+    '.panel{position:fixed;display:flex;flex-direction:column;overflow:hidden;',
     'background:var(--surface,#fff);border:1px solid var(--line,#e5e5e5);border-radius:12px;box-shadow:var(--shadow,0 10px 40px rgba(0,0,0,.16))}',
     '.panel[hidden]{display:none}',
-    'header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line,#e5e5e5)}',
-    'h2{margin:0;font-size:15px}',
-    '.tools{display:flex;align-items:center;gap:4px}',
+    '.panel.moving{opacity:.75}',
+    '.panel.min{height:auto!important}',
+    '.panel.min>:not(header){display:none!important}',
+    'header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line,#e5e5e5);cursor:move;touch-action:none;user-select:none;-webkit-user-select:none}',
+    '.panel.min header{border-bottom:none}',
+    'h2{margin:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.tools{display:flex;align-items:center;gap:4px;flex:none}',
     'button.small{font-size:13px;padding:4px 10px}',
-    '.close{font:inherit;font-size:20px;line-height:1;border:none;background:none;color:inherit;cursor:pointer;padding:4px 8px}',
+    '.close,.shrink{font:inherit;font-size:20px;line-height:1;border:none;background:none;color:inherit;cursor:pointer;padding:4px 8px;min-width:32px}',
+    '.grip{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;touch-action:none;',
+    'background:linear-gradient(135deg,transparent 50%,var(--muted,#737373) 50%,var(--muted,#737373) 58%,transparent 58%,transparent 70%,var(--muted,#737373) 70%,var(--muted,#737373) 78%,transparent 78%)}',
+    '.launch svg{display:none;width:20px;height:20px}',
     '.log{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.45}',
     '.msg{margin:0;max-width:90%;padding:8px 11px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}',
-    /* The bubble stays light in dark mode, so its text stays dark. */
-    '.me{align-self:flex-end;background:var(--accent-soft,#eef2ff);color:#1e1b4b}',
+    /* The artist's own bubble: a tint of the accent, light or dark with the page's theme. */
+    '.me{align-self:flex-end;background:color-mix(in srgb,var(--accent,#2f5d4f) 16%,var(--surface,#fff));color:var(--ink,#171717)}',
     '.bot{align-self:flex-start;background:var(--bg,#f5f5f5)}',
     '.bot.thinking{color:var(--muted,#737373)}',
     '.card{border:1px solid var(--line,#e5e5e5);border-radius:10px;padding:10px 12px;background:var(--surface,#fff)}',
@@ -130,7 +139,7 @@
     '.status{margin:6px 0 0;font-size:14px}',
     '.picks{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}',
     '.picks[hidden]{display:none}',
-    'form{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line,#e5e5e5)}',
+    'form{display:flex;gap:8px;padding:10px 22px 10px 14px;border-top:1px solid var(--line,#e5e5e5)}',
     /* 16px or iOS zooms in on focus and never zooms back out. */
     '.compose{position:relative;flex:1;display:flex;border-radius:8px;background:var(--bg,#fff)}',
     /* The grey finish-my-sentence text sits behind the (transparent) box, in the same font and wrap. */
@@ -148,8 +157,63 @@
     '.replies .hint{width:100%;margin:0;font-size:12px;color:var(--muted,#737373)}',
     '.note{margin:0;padding:0 14px 10px;font-size:14px;color:var(--warn,#b45309)}',
     '.note[hidden]{display:none}',
-    '@media (max-width:600px){.panel{left:0;right:0;bottom:0;width:100%;max-height:80vh;border-radius:12px 12px 0 0}}'
+    /* Phones: the pill shrinks to a round icon, so it covers less of the page. */
+    '@media (max-width:700px){.launch{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center}.launch span{display:none}.launch svg{display:block}}'
   ].join('');
+
+  /* The header's door to the panel, in the page's own .header-actions (styled here, not in app.css). */
+  var TOP_CSS = '.assistant-top{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap}' +
+    '.assistant-top svg{width:16px;height:16px}.assistant-top[hidden]{display:none}' +
+    '@media (max-width:700px){.assistant-top{width:34px;height:34px;padding:0;justify-content:center}.assistant-top span{display:none}}';
+  var ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>';
+
+  /* Where the panel sits, per device: { x, y, w, h, min } in CSS pixels. */
+  var PLACE_KEY = 'artShowTracker.assistantPlace';
+  function readPlace() {
+    try {
+      var v = JSON.parse(localStorage.getItem(PLACE_KEY) || 'null');
+      return v && ['x', 'y', 'w', 'h'].every(function (k) { return isFinite(v[k]); }) ? v : null;
+    } catch (_) { return null; }
+  }
+  function savePlace(v) { try { localStorage.setItem(PLACE_KEY, JSON.stringify(v)); } catch (_) {} }
+  /** Where a new panel opens: bottom left on a computer; on a phone the lower half. */
+  function defaultPlace(vw, vh) {
+    if (vw <= 600) {
+      var ph = Math.round(Math.min(vh * 0.5, 460));
+      return { x: 8, y: vh - ph - 72, w: vw - 16, h: ph, min: false };
+    }
+    var w = Math.min(420, vw - 32), h = Math.round(Math.min(vh * 0.7, 640));
+    return { x: 16, y: vh - h - 72, w: w, h: h, min: false };
+  }
+  /** Kept inside the window, at least 260 × 200, its title bar always reachable. */
+  function clampPlace(v, vw, vh) {
+    var w = Math.round(Math.max(Math.min(260, vw), Math.min(v.w, vw)));
+    var h = Math.round(Math.max(Math.min(200, vh), Math.min(v.h, vh)));
+    return {
+      x: Math.round(Math.min(Math.max(0, v.x), vw - w)),
+      y: Math.round(Math.min(Math.max(0, v.y), vh - (v.min ? 44 : h))),
+      w: w, h: h, min: !!v.min
+    };
+  }
+
+  /*
+   * What the assistant can point to (Art-Talk-Back D-072): every page in the
+   * menu, and the buttons, fields and links on this one, by their own labels.
+   */
+  function appMap() {
+    var out = [], N = window.ASTNav;
+    if (N && N.PAGES) out.push('Pages (the menu at the top right): ' + N.PAGES.map(function (p) { return p.label + ' — ' + p.note; }).join('; '));
+    var seen = {}, here = [];
+    document.querySelectorAll('header button, header a, main button, main a, main input, main select, nav button, .header-actions button').forEach(function (n) {
+      if (n.closest('studio-assistant') || n.closest('[hidden]')) return;
+      var t = (n.getAttribute('aria-label') || n.getAttribute('title') || n.textContent || n.getAttribute('placeholder') || '').replace(/\s+/g, ' ').trim();
+      if (!t || t.length > 60 || seen[t]) return;
+      seen[t] = 1;
+      here.push(t);
+    });
+    if (here.length) out.push('On this page (' + document.title + '): ' + here.join(', '));
+    return out.join('\n').slice(0, 15000);
+  }
 
   class Panel extends HTMLElement {}
 
@@ -159,13 +223,16 @@
     var self = this;
     var root = this.attachShadow({ mode: 'open' });
     root.appendChild(el('style', { text: CSS }));
-    this.launch = el('button', { class: 'launch', type: 'button', 'aria-expanded': 'false', 'aria-controls': 'panel', text: 'Ask the assistant' });
+    this.launch = el('button', { class: 'launch', type: 'button', 'aria-expanded': 'false', 'aria-controls': 'panel', 'aria-label': 'Ask the assistant', title: 'Ask the assistant' }, [el('span', { text: 'Ask the assistant' })]);
+    this.launch.insertAdjacentHTML('beforeend', ICON);
     this.log = el('div', { class: 'log', role: 'log', 'aria-live': 'polite' });
     this.picks = el('div', { class: 'picks', hidden: true });
     this.input = el('textarea', { rows: '2', 'aria-label': 'Message to the assistant', placeholder: 'e.g. sold two heron prints for $90 each, cash' });
     this.sendBtn = el('button', { class: 'btn primary', type: 'submit', text: 'Send' });
     this.note = el('p', { class: 'note', role: 'status', hidden: true });
     var close = el('button', { class: 'close', type: 'button', 'aria-label': 'Close the assistant', text: '×' });
+    this.shrinkBtn = el('button', { class: 'shrink', type: 'button', 'aria-label': 'Shrink the assistant to its title bar', title: 'Shrink', text: '–' });
+    var grip = el('div', { class: 'grip', 'aria-hidden': 'true', title: 'Drag to resize' });
     var fresh = el('button', { class: 'btn small', type: 'button', text: 'New chat' });
     var past = el('button', { class: 'btn small', type: 'button', text: 'Past chats' });
     // A long chat costs more per message (all of it is sent each time): offer a fresh one.
@@ -179,13 +246,23 @@
     this.said = readSaid();
     this.names = [];
     this.panel = el('section', { class: 'panel', id: 'panel', role: 'dialog', 'aria-label': 'Studio assistant', hidden: true }, [
-      el('header', {}, [el('h2', { text: 'Studio assistant' }), el('div', { class: 'tools' }, [past, fresh, close])]), this.log, this.long, this.picks, this.replies, this.note, form
+      el('header', { title: 'Drag to move' }, [el('h2', { text: 'Assistant' }), el('div', { class: 'tools' }, [past, fresh, this.shrinkBtn, close])]), this.log, this.long, this.picks, this.replies, this.note, form, grip
     ]);
     root.appendChild(this.launch);
     root.appendChild(this.panel);
 
     this.launch.addEventListener('click', function () { self.toggle(); });
     close.addEventListener('click', function () { self.toggle(false); });
+    this.shrinkBtn.addEventListener('click', function () { self.shrink(); });
+    var header = this.panel.querySelector('header');
+    this.drag(header, function (s, dx, dy) { return { x: s.x + dx, y: s.y + dy, w: s.w, h: s.h, min: s.min }; });
+    this.drag(grip, function (s, dx, dy) { return { x: s.x, y: s.y, w: s.w + dx, h: s.h + dy, min: s.min }; });
+    header.addEventListener('dblclick', function (e) { if (!e.target.closest('button')) self.shrink(); });
+    window.addEventListener('resize', function () { if (!self.panel.hidden) self.place(self.where); });
+    // Keys typed in the panel stay in it. Retargeted to <studio-assistant>, they
+    // reached the pages' own shortcuts as if typed on the page: "n" on the
+    // ledger opened a new show, and t/m/d/y and the arrows moved the calendar.
+    root.addEventListener('keydown', function (e) { e.stopPropagation(); });
     // Forget the conversation (the model starts clean); saved records stay saved.
     function startNew() {
       if (self.busy) return;
@@ -344,7 +421,66 @@
   Panel.prototype.paint = function () {
     var sess = S && S.available() && S.session();
     this.hidden = !sess || !!sess.expired;
+    this.topButton();
     if (this.hidden) this.toggle(false);
+  };
+
+  /** A second door in the page's header (beside the menu), shown only with the panel. */
+  Panel.prototype.topButton = function () {
+    var self = this, host = document.querySelector('.header-actions');
+    if (!host) return;
+    if (!this.top) {
+      if (!document.getElementById('assistant-top-css')) document.head.appendChild(el('style', { id: 'assistant-top-css', text: TOP_CSS }));
+      this.top = el('button', { class: 'assistant-top', type: 'button', 'aria-label': 'Ask the assistant', title: 'Ask the assistant', 'aria-expanded': 'false' }, [el('span', { text: 'Assistant' })]);
+      this.top.insertAdjacentHTML('afterbegin', ICON);
+      this.top.addEventListener('click', function () { self.toggle(); });
+      host.appendChild(this.top);
+    }
+    this.top.hidden = this.hidden;
+  };
+
+  /** Puts the panel at v (or where it was last left on this device), kept on screen. */
+  Panel.prototype.place = function (v) {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    this.where = clampPlace(v || readPlace() || defaultPlace(vw, vh), vw, vh);
+    var p = this.where, st = this.panel.style;
+    st.left = p.x + 'px'; st.top = p.y + 'px'; st.width = p.w + 'px'; st.height = p.h + 'px';
+    this.panel.classList.toggle('min', p.min);
+    this.shrinkBtn.textContent = p.min ? '▢' : '–';
+    this.shrinkBtn.setAttribute('aria-label', p.min ? 'Open the assistant out again' : 'Shrink the assistant to its title bar');
+    this.shrinkBtn.title = p.min ? 'Open out' : 'Shrink';
+  };
+
+  /** Shrinks the panel to its title bar, or opens it out again; remembered. */
+  Panel.prototype.shrink = function (min) {
+    if (min === undefined) min = !(this.where && this.where.min);
+    var w = this.where;
+    this.place({ x: w.x, y: w.y, w: w.w, h: w.h, min: min });
+    savePlace(this.where);
+    if (!min) this.input.focus();
+  };
+
+  /** Pointer drag on handle: to(start, dx, dy) gives the new place; saved when let go. */
+  Panel.prototype.drag = function (handle, to) {
+    var self = this;
+    handle.addEventListener('pointerdown', function (e) {
+      if (e.button > 0 || e.target.closest('button')) return;
+      e.preventDefault();
+      var start = self.where, sx = e.clientX, sy = e.clientY;
+      if (handle.setPointerCapture) handle.setPointerCapture(e.pointerId);
+      self.panel.classList.add('moving');
+      function move(ev) { self.place(to(start, ev.clientX - sx, ev.clientY - sy)); }
+      function up() {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        self.panel.classList.remove('moving');
+        savePlace(self.where);
+      }
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
   };
 
   Panel.prototype.toggle = function (open) {
@@ -352,8 +488,10 @@
     open = open === undefined ? this.panel.hidden : open;
     this.panel.hidden = !open;
     this.launch.setAttribute('aria-expanded', String(open));
+    if (this.top) this.top.setAttribute('aria-expanded', String(open));
     if (open) {
-      this.input.focus();
+      this.place();
+      if (!this.where.min) this.input.focus();
       if (!this._loaded) { this._loaded = true; this.load(); }
       this.loadNames();
     }
@@ -433,6 +571,7 @@
       }
     }
     var body = { message: text, app: this.getAttribute('app') || 'studio', today: today(), page: document.title };
+    try { var map = appMap(); if (map) body.appMap = map; } catch (_) {}
     if (this.fresh) { body.fresh = true; this.fresh = false; }
     else if (this.threadId) body.threadId = this.threadId;
     this.count(1);
@@ -551,5 +690,8 @@
     });
   };
 
+  // For the test harness: the place arithmetic and the map the assistant is sent.
+  Panel.clampPlace = clampPlace;
+  Panel.appMap = appMap;
   customElements.define('studio-assistant', Panel);
 })();
