@@ -299,6 +299,13 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   await page.waitForTimeout(500);
   check('the next message carries on that chat', calls.includes('chat and Sarasota? (thread A)'), calls.slice(-2).join(' | '));
 
+  // ---- every page ------------------------------------------------------------
+  console.log('\n-- every page');
+  for (const f of ['index', 'browse', 'calendar', 'contacts', 'jury', 'map']) {
+    await page.goto(BASE.replace('expenses.html', f + '.html'), { waitUntil: 'load' });
+    check('signed in, the button shows on ' + f + '.html', await page.isVisible('studio-assistant >> .launch'));
+  }
+
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();
   console.log('\n' + passed + '/' + (passed + fails.length) + ' checks passed');
