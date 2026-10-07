@@ -296,6 +296,31 @@ async function controlled(d) {
     check('and both devices end with both edits', both.every(s => s.city === 'Typed while syncing' && s.notes === 'From device 1'),
           JSON.stringify(both.map(s => [s.city, s.notes])));
 
+    // A sync asked for while one is on its way sends what was saved before the
+    // ask. ("Use mine" above failed now and then: its sync came back as the one
+    // already running, which had read the outbox before the change.)
+    let release2;
+    const held2 = new Promise(r => { release2 = r; });
+    let seen2 = false;
+    await two.page.route('**/v1/sync/pull**', async route => {
+      if (seen2) return route.continue();
+      seen2 = true;
+      const res = await route.fetch();
+      await held2;
+      await route.fulfill({ response: res });
+    });
+    const first = sync(two);
+    await new Promise(r => setTimeout(r, 300));
+    await edit(two, { notes: 'Saved during a sync' });
+    const second = sync(two);
+    release2();
+    await Promise.all([first, second]);
+    await two.page.unroute('**/v1/sync/pull**');
+    const waiting = await two.page.evaluate(() => ASTStudio.pendingCount());
+    const there = (await api(two, '/v1/shows?limit=100')).items.find(s => s.id === wp.id).notes;
+    check('a sync asked for mid-sync sends the change saved before it', waiting === 0 && there === 'Saved during a sync',
+          JSON.stringify({ waiting, there }));
+
     /* ==== Undo after delete ============================================== */
     console.log('\n-- undo a delete');
     const artigras = SEASON.shows[2].id;
