@@ -378,12 +378,14 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   console.log('\n-- take me to …');
   await page.goto(BASE.replace('expenses.html', 'index.html'), { waitUntil: 'load' });
   await page.click('studio-assistant >> .launch');
-  const said = () => page.evaluate(() => document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.msg.bot').length);
+  // Waits for one more "There it is." than before: the reply itself, not the Thinking… bubble.
+  const said = async () => ((await panelText()).match(/There it is\./g) || []).length;
   const ask = async t => {
     const before = await said();
     await page.fill(box, t); await page.press(box, 'Enter');
-    for (let i = 0; i < 100 && !(await said() > before && /There it is\./.test(await panelText())); i++) await page.waitForTimeout(100);
-    await waitIn('.log', /There it is\./);
+    for (let i = 0; i < 100 && (await said()) <= before; i++) await page.waitForTimeout(100);
+    if ((await said()) <= before) throw new Error('no reply to ' + t + '; saw ' + (await panelText()).slice(-300));
+    await page.waitForTimeout(100);
   };
   await ask('take me to On this page / Add show');
   check('the panel says it can open places', JSON.stringify(lastBody.commands) === '["open"]', JSON.stringify(lastBody.commands));
