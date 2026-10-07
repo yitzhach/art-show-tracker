@@ -98,6 +98,9 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
     } else if (/add a note/.test(body.message)) {
       events = [{ type: 'done', action: 'show.update', record: { id: '01JSHOW' }, activityIds: ['01JACT0000000000000000000B'] },
                 { type: 'text', text: 'Added.' }, { type: 'end', reason: 'end_turn' }];
+    } else if (/^take me to /.test(body.message)) {
+      const [place, control] = body.message.slice(11).split(' / ');
+      events = [{ type: 'open', place, control }, { type: 'text', text: 'There it is.' }, { type: 'end', reason: 'end_turn' }];
     } else {
       events = [{ type: 'text', text: 'OK.' }, { type: 'end', reason: 'end_turn' }];
     }
@@ -369,6 +372,27 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   await page.press(box, 'End');
   const month2 = await page.evaluate(() => location.hash);
   check('on the calendar, t, m, y, d and the arrows typed in the chat stay in the chat', (await val()) === 'today my' && month === month2, month + ' → ' + month2);
+
+  // ---- take me to … (D-075) ----------------------------------------------------
+  console.log('\n-- take me to …');
+  await page.goto(BASE.replace('expenses.html', 'index.html'), { waitUntil: 'load' });
+  await page.click('studio-assistant >> .launch');
+  const ask = async t => { await page.fill(box, t); await page.press(box, 'Enter'); await waitIn('.log', /There it is\.\s*$/); };
+  await ask('take me to On this page / Add show');
+  check('the panel says it can open places', JSON.stringify(lastBody.commands) === '["open"]', JSON.stringify(lastBody.commands));
+  const lit = await page.evaluate(() => { const n = document.querySelector('[data-assistant-shown]'); return n && [n.textContent.trim(), n === document.activeElement, getComputedStyle(n).outlineStyle]; });
+  check('a control on this page is focused and outlined, not pressed', !!lit && /Add show/i.test(lit[0]) && lit[1] && lit[2] === 'solid' && await page.evaluate(() => document.querySelector('#drawer').hidden), JSON.stringify(lit));
+  await ask('take me to Nowhere / Polish the frame');
+  check('a place that isn\'t here says so', /Couldn.t find Polish the frame/.test(await shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.note').textContent)));
+  await page.fill(box, 'take me to Pages / Money — Expenses, sales and did it pay for itself');
+  await Promise.all([page.waitForURL(/expenses\.html/), page.press(box, 'Enter')]);
+  check('a page from the menu opens', /expenses\.html$/.test(page.url()), page.url());
+  await page.goto(BASE.replace('expenses.html', 'calendar.html'), { waitUntil: 'load' });
+  await page.click('studio-assistant >> .launch');
+  await page.fill(box, 'take me to Ledger / Add show');
+  await Promise.all([page.waitForURL(/index\.html/), page.press(box, 'Enter')]);
+  await page.waitForTimeout(600);
+  check('a control on another page is shown once that page opens', await page.evaluate(() => /Add show/i.test((document.querySelector('[data-assistant-shown]') || {}).textContent || '')));
 
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();

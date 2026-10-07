@@ -111,7 +111,9 @@ fully without any of them, and from `file://` the studio is off entirely.
   several records. Only while signed in to the studio. A pop-up the artist drags,
   resizes and shrinks (its place kept per device), with a second button in
   `.header-actions`; keys typed in it never reach the page's own shortcuts. Each
-  message sends `appMap` (the menu's pages and this page's controls).
+  message sends `appMap` (the menu's pages and this page's controls) and
+  `commands: ["open"]`: "take me to …" opens the page or outlines the control,
+  never pressing it (D-075).
 - `studio-sdk.js` — vendored, generated in Art-Talk-Back
   (`pnpm --filter @studio/sdk bundle:classic`). Never edit by hand.
 - `sw.js`, `pwa.js`, `manifest.webmanifest` — installable app shell (offline).
