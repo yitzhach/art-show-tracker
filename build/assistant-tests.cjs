@@ -47,7 +47,7 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   const calls = [];
-  let confirmStatus = 200;
+  let confirmStatus = 200, lastBody = null;
 
   await ctx.route('**/v1/sync/pull**', r => r.fulfill({ json: { changes: [], cursor: '0', hasMore: false } }));
   await ctx.route('**/v1/sync/push', r => r.fulfill({ json: { results: [] } }));
@@ -80,6 +80,7 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   });
   await ctx.route('**/assistant/chat', r => {
     const body = JSON.parse(r.request().postData());
+    lastBody = body;
     calls.push('chat ' + body.message + (body.fresh ? ' (fresh)' : '') + (body.threadId ? ' (thread ' + body.threadId.slice(-1) + ')' : ''));
     if (/fail/.test(body.message)) return r.fulfill({ status: 401, json: { error: { code: 'unauthenticated', message: 'Sign in first' } } });
     let events;
@@ -226,7 +227,13 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
              font: parseFloat(getComputedStyle(r.querySelector('textarea')).fontSize),
              sideways: document.documentElement.scrollWidth > window.innerWidth + 1 };
   });
-  check('the panel fills the width of the phone', phone.width === phone.vw, JSON.stringify(phone));
+  check('the panel fits the width of the phone', phone.width <= phone.vw, JSON.stringify(phone));
+  const doors = await page.evaluate(() => {
+    const l = document.querySelector('studio-assistant').shadowRoot.querySelector('.launch').getBoundingClientRect();
+    const t = document.querySelector('.header-actions .assistant-top');
+    return { round: Math.round(l.width) === 44 && Math.round(l.height) === 44, top: !!t && !t.hidden && t.getBoundingClientRect().width > 0 };
+  });
+  check('on a phone the floating button is a 44px round icon, and the header has an icon too', doors.round && doors.top, JSON.stringify(doors));
   check('Send is on screen', phone.sendVisible);
   check('the box is 16px, so iOS does not zoom in', phone.font >= 16, String(phone.font));
   check('the page never scrolls sideways', !phone.sideways);
@@ -305,6 +312,63 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
     await page.goto(BASE.replace('expenses.html', f + '.html'), { waitUntil: 'load' });
     check('signed in, the button shows on ' + f + '.html', await page.isVisible('studio-assistant >> .launch'));
   }
+
+  // ---- keys, the header button, colours, moving it ------------------------------
+  console.log('\n-- keys stay in the panel; header button; dark; a movable pop-up');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(BASE.replace('expenses.html', 'index.html'), { waitUntil: 'load' });
+  await page.evaluate(() => localStorage.removeItem('artShowTracker.assistantPlace'));
+  check('the header has an Assistant button', await page.isVisible('.header-actions .assistant-top'));
+  await page.click('.header-actions .assistant-top');
+  check('the header button opens the panel', await shadow(() => !document.querySelector('studio-assistant').shadowRoot.querySelector('.panel').hidden));
+  await page.fill(box, '');
+  await page.type(box, 'nothing new');
+  await page.press(box, 'Backspace');
+  check('typing n in the chat box types n, and the ledger\'s n (new show) stays shut',
+        (await val()) === 'nothing ne' && await page.evaluate(() => document.querySelector('#drawer').hidden), await val());
+  const mine = await page.evaluate(() => document.querySelector('.header-actions .assistant-top').getAttribute('aria-expanded'));
+  check('the header button says the panel is open', mine === 'true');
+  await page.press(box, 'Enter');
+  await waitIn('.log', /OK\./);
+  check('each message carries the app\'s map: the pages and this page\'s buttons',
+        !!lastBody && /Calendar — /.test(lastBody.appMap || '') && /Add show/i.test(lastBody.appMap || ''), (lastBody && lastBody.appMap || '').slice(0, 160));
+  await page.evaluate(() => { document.documentElement.setAttribute('data-theme', 'dark'); });
+  const dark = await shadow(() => {
+    const r = document.querySelector('studio-assistant').shadowRoot;
+    return [getComputedStyle(r.querySelector('.panel')).backgroundColor, getComputedStyle(r.querySelector('.msg.me')).color];
+  });
+  check('dark mode: the panel and the artist\'s own bubble follow the page', dark[0] === 'rgb(23, 23, 23)' && dark[1] === 'rgb(245, 245, 244)', dark.join(' / '));
+  const at = await page.locator('studio-assistant >> .panel').boundingBox();
+  const bar = await page.locator('studio-assistant >> .panel header h2').boundingBox();
+  await page.mouse.move(bar.x + 10, bar.y + 5); await page.mouse.down();
+  await page.mouse.move(bar.x + 310, bar.y - 95, { steps: 4 }); await page.mouse.up();
+  const moved = await page.locator('studio-assistant >> .panel').boundingBox();
+  check('dragged by its title bar', Math.round(moved.x - at.x) === 300 && Math.round(moved.y - at.y) === -100, JSON.stringify([moved.x - at.x, moved.y - at.y]));
+  const grip = await page.locator('studio-assistant >> .grip').boundingBox();
+  await page.mouse.move(grip.x + 10, grip.y + 10); await page.mouse.down();
+  await page.mouse.move(grip.x - 90, grip.y - 90, { steps: 4 }); await page.mouse.up();
+  const sized = await page.locator('studio-assistant >> .panel').boundingBox();
+  check('resized from its corner', Math.round(at.width - sized.width) === 100 && Math.round(at.height - sized.height) === 100);
+  await page.click('studio-assistant >> .shrink');
+  const small = await page.locator('studio-assistant >> .panel').boundingBox();
+  check('shrunk to its title bar', small.height < 60 && !(await page.isVisible('studio-assistant >> .log')));
+  await page.reload({ waitUntil: 'load' });
+  await page.click('studio-assistant >> .launch');
+  const back = await page.locator('studio-assistant >> .panel').boundingBox();
+  check('its place and size are kept on this device', Math.round(back.x) === Math.round(moved.x) && Math.round(back.y) === Math.round(moved.y) && back.height < 60);
+  await page.click('studio-assistant >> .shrink');
+  check('opened out again', await page.isVisible('studio-assistant >> .log'));
+  const fit = await page.evaluate(() => customElements.get('studio-assistant').clampPlace({ x: 5000, y: -80, w: 900, h: 2000 }, 390, 844));
+  check('a stored place bigger than the window is pulled back on screen', JSON.stringify(fit) === JSON.stringify({ x: 0, y: 0, w: 390, h: 844, min: false }), JSON.stringify(fit));
+  await page.goto(BASE.replace('expenses.html', 'calendar.html'), { waitUntil: 'load' });
+  await page.click('studio-assistant >> .launch');
+  const month = await page.evaluate(() => location.hash);  // #<cursor>/<view>, rewritten on every render
+  await page.fill(box, '');
+  await page.type(box, 'today my');
+  await page.press(box, 'ArrowLeft');
+  await page.press(box, 'End');
+  const month2 = await page.evaluate(() => location.hash);
+  check('on the calendar, t, m, y, d and the arrows typed in the chat stay in the chat', (await val()) === 'today my' && month === month2, month + ' → ' + month2);
 
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();
