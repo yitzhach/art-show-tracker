@@ -119,7 +119,8 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
       if (ok) return;
       await page.waitForTimeout(100);
     }
-    throw new Error('timed out waiting for ' + sel + ' to match ' + re);
+    const seen = await page.evaluate(s => { const r = document.querySelector('studio-assistant').shadowRoot; const n = r.querySelector(s); return [(n && n.textContent || '').slice(-300), r.querySelector('.note').textContent, location.pathname]; }, sel);
+    throw new Error('timed out waiting for ' + sel + ' to match ' + re + '; saw ' + JSON.stringify(seen));
   };
 
   // ---- signed out ------------------------------------------------------------
@@ -377,7 +378,13 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   console.log('\n-- take me to …');
   await page.goto(BASE.replace('expenses.html', 'index.html'), { waitUntil: 'load' });
   await page.click('studio-assistant >> .launch');
-  const ask = async t => { await page.fill(box, t); await page.press(box, 'Enter'); await waitIn('.log', /There it is\.\s*$/); };
+  const said = () => page.evaluate(() => document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.msg.bot').length);
+  const ask = async t => {
+    const before = await said();
+    await page.fill(box, t); await page.press(box, 'Enter');
+    for (let i = 0; i < 100 && !(await said() > before && /There it is\./.test(await panelText())); i++) await page.waitForTimeout(100);
+    await waitIn('.log', /There it is\./);
+  };
   await ask('take me to On this page / Add show');
   check('the panel says it can open places', JSON.stringify(lastBody.commands) === '["open"]', JSON.stringify(lastBody.commands));
   const lit = await page.evaluate(() => { const n = document.querySelector('[data-assistant-shown]'); return n && [n.textContent.trim(), n === document.activeElement, getComputedStyle(n).outlineStyle]; });
