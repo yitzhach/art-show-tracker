@@ -365,13 +365,21 @@ window.ASTStudio = (function () {
   };
 
   /* ---- 5. SYNC ----------------------------------------------------------- */
-  var syncing = null;
-  /** Push then pull; safe to call often. Never throws: problems become a status. */
+  var syncing = null, again = null;
+  /**
+   * Push then pull; safe to call often. Never throws: problems become a status.
+   * Called while a sync is on its way, it runs once more after that one, so a
+   * change saved just before the call is sent by the time it resolves. Handing
+   * back the sync already running let "Use mine" on a review card resolve
+   * before its change had gone, because that sync had read the outbox first.
+   */
   function sync() {
     if (!studio) return Promise.resolve();
     // Signed out by the studio: nothing goes out until the artist signs in again.
     if (isExpired()) { setStatus('expired', expiredDetail()); return Promise.resolve(); }
-    if (syncing) return syncing;
+    if (syncing) {
+      return again || (again = syncing.then(function () { again = null; return sync(); }));
+    }
     setStatus('syncing');
     syncing = studio.then(function (st) { return st.sync().then(function () { return st; }); })
       .then(function (st) {
