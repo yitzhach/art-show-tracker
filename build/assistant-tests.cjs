@@ -42,7 +42,8 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
 
 (async () => {
   const browser = await chromium.launch(fs.existsSync(EXECUTABLE) ? { executablePath: EXECUTABLE } : {});
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // No service worker: it would answer catalogue.json from its cache, past page.route.
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -98,6 +99,11 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
     } else if (/add a note/.test(body.message)) {
       events = [{ type: 'done', action: 'show.update', record: { id: '01JSHOW' }, activityIds: ['01JACT0000000000000000000B'] },
                 { type: 'text', text: 'Added.' }, { type: 'end', reason: 'end_turn' }];
+    } else if (/apply to this week/.test(body.message)) {
+      // Names the first two catalogue shows the panel sent, with their links (D-077).
+      const rows = (body.appData || '').split('\n').slice(1).map(l => l.split(' | '));
+      const text = rows.slice(0, 2).map(c => c[1] + ': apply by ' + c[3].slice(0, 10) + ', ' + c[5]).join('\n') || 'None this week.';
+      events = [{ type: 'text', text }, { type: 'end', reason: 'end_turn' }];
     } else if (/^take me to /.test(body.message)) {
       const [place, control] = body.message.slice(11).split(' / ');
       events = [{ type: 'open', place, control }, { type: 'text', text: 'There it is.' }, { type: 'end', reason: 'end_turn' }];
@@ -402,6 +408,44 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   await Promise.all([page.waitForURL(/index\.html/), page.press(box, 'Enter')]);
   await page.waitForTimeout(600);
   check('a control on another page is shown once that page opens', await page.evaluate(() => /Add show/i.test((document.querySelector('[data-assistant-shown]') || {}).textContent || '')));
+
+  // ---- what do I need to apply to this week? (D-077) ------------------------------
+  console.log('\n-- the catalogue\'s deadlines');
+  // Real catalogue rows (with fit records), their apply-by moved relative to today so this never goes stale.
+  const real = JSON.parse(fs.readFileSync(__dirname + '/../tracker/catalogue.json', 'utf8'));
+  const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const shifted = { 'fit-ann-arbor-art-fair': day(3), 'zapp-14594': day(1), 'zapp-14106': day(60), 'fit-armonk-outdoor-art-show': 'next spring' };
+  const shows = real.shows.map(r => shifted[r.id] ? Object.assign({}, r, { applyBy: shifted[r.id] }) : Object.assign({}, r, { applyBy: r.applyBy && r.applyBy < day(0) ? r.applyBy : '2001-01-01' }));
+  await ctx.route('**/catalogue.json', r => r.fulfill({ json: Object.assign({}, real, { shows }) }));
+  await page.goto(BASE.replace('expenses.html', 'index.html'), { waitUntil: 'load' });
+  await page.evaluate(() => localStorage.setItem('artShowTracker.catalogue', JSON.stringify({ picks: { 'fit-ann-arbor-art-fair': { liked: true } }, added: [] })));
+  await page.reload({ waitUntil: 'load' });
+  await page.click('studio-assistant >> .launch');
+  await page.fill(box, 'what do I need to apply to this week?');
+  await page.press(box, 'Enter');
+  await waitIn('.log', /Ann Arbor Art Fair 2027: apply by/);
+  const data = (lastBody.appData || '').split('\n');
+  check('the message carries the catalogue\'s deadlines from today for 45 days, soonest first',
+        data[0].indexOf('from ' + day(0) + ' to ' + day(45)) > 0 && data.length === 3 && /^zapp-14594 \| 4 Bridges/.test(data[1]) && /^fit-ann-arbor-art-fair \| Ann Arbor Art Fair 2027 \| [^|]+ \| /.test(data[2]),
+        data.slice(0, 3).join(' // ').slice(0, 300));
+  check('a hearted show says so; a date past the window or not a date is left out',
+        / \| hearted$/.test(data[2]) && !/zapp-14106|armonk/.test(lastBody.appData), data[2]);
+  const links = await shadow(() => Array.from(document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.log .msg.bot:last-of-type a')).map(a => [a.href, a.target]));
+  check('the reply\'s application links are tappable and open in a new tab', links.length === 2 && links.every(l => /^https?:/.test(l[0]) && l[1] === '_blank'), JSON.stringify(links));
+  const opens = await shadow(() => Array.from(document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.picks [data-show]')).map(b => b.getAttribute('data-show')));
+  check('each catalogue show it named gets an Open button', JSON.stringify(opens) === JSON.stringify(['zapp-14594', 'fit-ann-arbor-art-fair']), JSON.stringify(opens));
+  await Promise.all([page.waitForURL(/browse\.html#show=fit-ann-arbor-art-fair/), shadow(() => document.querySelector('studio-assistant').shadowRoot.querySelector('.picks [data-show="fit-ann-arbor-art-fair"]').click())]);
+  let drawer = null;
+  for (let i = 0; i < 50 && !drawer; i++) {
+    drawer = await page.evaluate(() => { const h = document.querySelector('.idr'); return h && !h.hidden ? h.querySelector('h2').textContent : null; });
+    if (!drawer) await page.waitForTimeout(100);
+  }
+  check('Open takes them to that show in Browse', drawer === 'Ann Arbor Art Fair 2027', String(drawer));
+  const html = await page.evaluate(() => {
+    const p = document.createElement('p'); p.textContent = 'see <b>https://example.test/a?b=1</b>. Then javascript:alert(1)';
+    customElements.get('studio-assistant').linkify(p); return p.innerHTML;
+  });
+  check('only http(s) links become links; the rest stays text', html === 'see &lt;b&gt;<a href="https://example.test/a?b=1" target="_blank" rel="noopener noreferrer">https://example.test/a?b=1</a>&lt;/b&gt;. Then javascript:alert(1)', html);
 
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();

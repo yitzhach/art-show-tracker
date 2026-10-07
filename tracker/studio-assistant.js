@@ -137,7 +137,8 @@
     'button.primary{background:var(--ink,#171717);color:var(--surface,#fff);border-color:transparent}',
     'button[disabled]{opacity:.55;cursor:default}',
     '.status{margin:6px 0 0;font-size:14px}',
-    '.picks{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}',
+    '.picks{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px;max-height:30vh;overflow:auto}',
+    '.msg a{color:inherit;text-decoration:underline;overflow-wrap:anywhere}',
     '.picks[hidden]{display:none}',
     'form{display:flex;gap:8px;padding:10px 22px 10px 14px;border-top:1px solid var(--line,#e5e5e5)}',
     /* 16px or iOS zooms in on focus and never zooms back out. */
@@ -260,6 +261,79 @@
       return true;
     }
     return names.some(showControl);
+  }
+
+  /*
+   * The catalogue's upcoming deadlines (Art-Talk-Back D-077). The shows the
+   * artist can apply to live in catalogue.json on this device, not in the
+   * studio, so each message carries the next DEADLINE_DAYS days of them: that
+   * is what answers "what do I need to apply to this week?". Only the shipped
+   * reference data, the shows the artist added to the catalogue, and their
+   * hearts go; never contacts or anything else.
+   */
+  var DEADLINE_DAYS = 45, catalogueFile = null;
+  function loadCatalogue() {
+    if (!catalogueFile) {
+      catalogueFile = fetch('catalogue.json')
+        .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+        .then(function (d) { return (d && d.shows) || []; })
+        .catch(function () { catalogueFile = null; return []; });
+    }
+    return catalogueFile;
+  }
+  function addDays(iso, n) {
+    var d = new Date(iso + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  var ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+  /** { text, shows: [{ id, name }] } for the deadlines from `from` on; text '' when none. */
+  function deadlines(rows, from) {
+    var to = addDays(from, DEADLINE_DAYS), cat = {};
+    try { cat = (window.AST && window.AST.Settings.getCatalogue()) || {}; } catch (_) {}
+    var picks = cat.picks || {}, seen = {};
+    var all = rows.concat(Array.isArray(cat.added) ? cat.added : []).filter(function (r) {
+      if (!r || !r.id || !r.name || seen[r.id]) return false;
+      seen[r.id] = 1;
+      return ISO_DAY.test(r.applyBy || '') && r.applyBy >= from && r.applyBy <= to;
+    }).sort(function (a, b) { return a.applyBy < b.applyBy ? -1 : a.applyBy > b.applyBy ? 1 : 0; });
+    if (!all.length) return { text: 'Catalogue shows with an apply-by date from ' + from + ' to ' + to + ': none.', shows: [] };
+    var lines = all.map(function (r) {
+      var p = picks[r.id] || {}, marks = [];
+      if (p.liked) marks.push('hearted');
+      if (p.addedShowId) marks.push('on their ledger');
+      var place = [r.city, r.state].filter(Boolean).join(', ');
+      var when = r.startDate ? r.startDate + (r.endDate && r.endDate !== r.startDate ? ' to ' + r.endDate : '') : '';
+      return [r.id, String(r.name).replace(/\s*\|\s*/g, ' / '), place, r.applyBy + (r.deadlineNote ? ' ' + r.deadlineNote : ''), when, r.url || '', marks.join(', ')].join(' | ');
+    });
+    return {
+      text: 'Catalogue shows with an apply-by date from ' + from + ' to ' + to + ', soonest first (' + all.length +
+        '). Columns: catalogue id | name | place | apply by | show dates | application link | marks\n' + lines.join('\n'),
+      shows: all.map(function (r) { return { id: String(r.id), name: String(r.name) }; })
+    };
+  }
+
+  /* A bot message's web links become links that open in a new tab; the rest stays text. */
+  var LINK = /https?:\/\/[^\s<>"')\]]+[^\s<>"')\].,;:!?]/g;
+  function linkify(node) {
+    var text = node.textContent, at = 0, m, kids = [];
+    LINK.lastIndex = 0;
+    while ((m = LINK.exec(text))) {
+      if (m.index > at) kids.push(document.createTextNode(text.slice(at, m.index)));
+      kids.push(el('a', { href: m[0], target: '_blank', rel: 'noopener noreferrer', text: m[0] }));
+      at = m.index + m[0].length;
+    }
+    if (!kids.length) return;
+    if (at < text.length) kids.push(document.createTextNode(text.slice(at)));
+    node.textContent = '';
+    kids.forEach(function (k) { node.appendChild(k); });
+  }
+
+  /** Opens a catalogue show in Browse (its drawer), from this page or another. */
+  function openCatalogueShow(id) {
+    var here = String(location.pathname).split('/').pop() || 'index.html';
+    if (here === 'browse.html') location.hash = 'show=' + encodeURIComponent(id);
+    else location.href = 'browse.html#show=' + encodeURIComponent(id);
   }
 
   class Panel extends HTMLElement {}
@@ -546,6 +620,7 @@
 
   Panel.prototype.say = function (who, text) {
     var p = el('p', { class: 'msg ' + who, text: text || '' });
+    if (who === 'bot') linkify(p);
     this.log.appendChild(p);
     this.log.scrollTop = this.log.scrollHeight;
     return p;
@@ -622,6 +697,13 @@
         // A name that matched several records: offer them as buttons.
         if (!acted && !gotReplies && lastSearch && lastSearch.length > 1 && lastSearch.length <= 6) self.offer(lastSearch);
         bubble.textContent = bubble.textContent.replace(/\s+$/, '');
+        if (started) {
+          // Catalogue shows the reply names, by their exact names: a button each that opens it (D-077).
+          var said = bubble.textContent;
+          var named = sent.shows.filter(function (sh) { return said.indexOf(sh.name) >= 0; }).slice(0, 12);
+          if (named.length && self.picks.hidden) self.offerShows(named);
+          linkify(bubble);
+        }
       }
     }
     var body = { message: text, app: this.getAttribute('app') || 'studio', today: today(), page: document.title };
@@ -630,7 +712,12 @@
     if (this.fresh) { body.fresh = true; this.fresh = false; }
     else if (this.threadId) body.threadId = this.threadId;
     this.count(1);
-    fetch('/assistant/chat', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    var sent = { shows: [] };
+    loadCatalogue()
+      .then(function (rows) {
+        try { sent = deadlines(rows, body.today); if (sent.text) body.appData = sent.text; } catch (_) { sent = { shows: [] }; }
+        return fetch('/assistant/chat', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      })
       .then(function (res) {
         if (!res.ok) {
           return res.json().catch(function () { return null; }).then(function (data) {
@@ -668,6 +755,24 @@
       var b = el('button', { class: 'btn', type: 'button', text: it.label });
       b.title = it.detail || '';
       b.addEventListener('click', function () { self.send(it.label); });
+      self.picks.appendChild(b);
+    });
+    this.picks.hidden = false;
+  };
+
+  /** A button per catalogue show the reply named: opens it in Browse. */
+  Panel.prototype.offerShows = function (shows) {
+    var self = this;
+    this.picks.textContent = '';
+    shows.forEach(function (sh) {
+      var b = el('button', { class: 'btn', type: 'button', text: 'Open ' + (sh.name.length > 48 ? sh.name.slice(0, 47) + '\u2026' : sh.name) });
+      b.title = sh.name;
+      b.setAttribute('data-show', sh.id);
+      b.addEventListener('click', function () {
+        // On a phone the panel shrinks to its bar so the show isn't under it.
+        if (window.innerWidth <= 600 && self.where && !self.where.min) self.place({ x: self.where.x, y: self.where.y, w: self.where.w, h: self.where.h, min: true });
+        openCatalogueShow(sh.id);
+      });
       self.picks.appendChild(b);
     });
     this.picks.hidden = false;
@@ -748,6 +853,8 @@
   // For the test harness: the place arithmetic and the map the assistant is sent.
   Panel.clampPlace = clampPlace;
   Panel.appMap = appMap;
+  Panel.deadlines = deadlines;
+  Panel.linkify = linkify;
   Panel.openPlace = openPlace;
   // A control asked for on another page is shown once that page has loaded.
   window.addEventListener('load', function () {

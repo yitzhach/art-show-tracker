@@ -113,7 +113,10 @@ fully without any of them, and from `file://` the studio is off entirely.
   `.header-actions`; keys typed in it never reach the page's own shortcuts. Each
   message sends `appMap` (the menu's pages and this page's controls) and
   `commands: ["open"]`: "take me to …" opens the page or outlines the control,
-  never pressing it (D-075).
+  never pressing it (D-075). It also sends `appData`: the catalogue's apply-by
+  deadlines for the next 45 days, with hearts, so "what do I need to apply to this
+  week?" has an answer; links in replies are tappable and each catalogue show a
+  reply names gets an "Open" button to `browse.html#show=<id>` (D-077).
 - `studio-sdk.js` — vendored, generated in Art-Talk-Back
   (`pnpm --filter @studio/sdk bundle:classic`). Never edit by hand.
 - `sw.js`, `pwa.js`, `manifest.webmanifest` — installable app shell (offline).
