@@ -59,6 +59,10 @@ in **plain language** — assume a beginner engineer. Aim for under ~150 words.
   `ASTMembers`, `ASTVersion`, `ASTSupabase`). Opens via `file://` by design.
 - **`build/`** — Python 3, stdlib + `openpyxl`/`zipcodes`. Writes JSON to `tracker/`.
 - **`worker/`** — Cloudflare Worker, D1 + KV + R2, wrangler 4. Complete, undeployed.
+- **`qa/`** — browser tests: TypeScript that Playwright runs directly (no build
+  step), with its own `package.json`, excluded from the root `tsconfig.json`. An
+  audit of every page at desktop and phone size, plus `qa/tests/site/` specs.
+  Skill: `.claude/skills/site-qa`.
 - **Studio platform** — shows and sales sync through Isaac's studio API
   (`/v1/*`, repo `yitzhach/Art-Talk-Back`) when the device is signed in there.
   `app-worker.js` serves `tracker/` and forwards `/v1/*` to the `studio-api`
@@ -140,6 +144,8 @@ node build/contacts-tests.cjs
 node build/route-tests.cjs                  # pure node, no server
 node build/assistant-tests.cjs              # the assistant panel, studio answers mocked
 node build/run-suites.cjs                   # all of the above + pwa + studio
+npm ci --prefix qa && npm --prefix qa test  # page audit + qa specs → qa/results/audit.json
+qa/browse open <url>                        # read and drive a page as text (Playwright CLI)
 STUDIO_PLATFORM=../Art-Talk-Back node e2e/two-devices.cjs   # offline sync, 2 devices
 cd worker && npm test
 ```

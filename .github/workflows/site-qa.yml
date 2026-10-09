@@ -1,0 +1,53 @@
+name: Site QA
+
+# qa/: every page audited at desktop and phone size (load, JS and console
+# errors, broken links, accessibility, phone layout) plus qa/tests/site/.
+# Only issues qa/audit-baseline.json does not already know fail the run.
+# On a failure the HTML report and the traces are uploaded; open a trace with
+# `npx playwright show-trace <trace.zip>` in qa/, or at trace.playwright.dev.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    # A branch in this repo is covered by its push; pull_request is for forks.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: qa/package-lock.json
+      - run: npm ci
+      - name: Chromium for the pinned Playwright
+        run: npx playwright install --with-deps chromium
+      - run: npm run typecheck
+      - run: npx playwright test
+      - name: Upload the report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-qa-report-${{ github.run_attempt }}
+          path: |
+            qa/results/report
+            qa/results/test-output
+            qa/results/audit.json
+          retention-days: 14

@@ -17,6 +17,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["**/*.tsx", "**/*.ts"],
-  "exclude": ["vite.config.ts", "tracker/**", "worker/**"],
+  "exclude": ["vite.config.ts", "tracker/**", "worker/**", "qa/**"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
