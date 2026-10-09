@@ -449,6 +449,9 @@ grade of it).
   arrow is a button).
 - Playwright is pinned at 1.56.1 (cloud sessions' Chromium). Bump it in
   site-qa, with `ci.yml`'s copy.
+- Both workflows now use `checkout`/`setup-node`/`upload-artifact@v7` and
+  `pnpm/action-setup@v6` (Node 24 runtimes; the Node 20 warning is gone).
+  site-qa's template carries the same versions, so "update site-qa" keeps them.
 
 **Open, not started:**
 
@@ -456,8 +459,6 @@ grade of it).
   Adding it means a second `site.config` or its own repo.
 - `e2e/two-devices.cjs` hung once on CI after "the pull did not overwrite the
   edit…" (passed on re-run). Watch for a repeat.
-- GitHub warns that `actions/checkout@v4`/`setup-node@v4` run on a deprecated
-  Node 20; bump to their current majors in both workflows.
 - The site-qa plugin (`/plugin marketplace add yitzhach/site-qa`) passed
   `claude plugin validate` but hasn't been installed on a real machine yet.
 

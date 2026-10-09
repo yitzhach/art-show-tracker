@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # A change that spans both repos sits on a branch of the same name in each
       # (Art-Talk-Back D-056): test against that platform branch, else its default branch.
       - name: Pick the platform branch
@@ -30,15 +30,15 @@ jobs:
           else
             echo "ref=" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: yitzhach/Art-Talk-Back
           ref: ${{ steps.platform.outputs.ref }}
           path: .studio-platform
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           package_json_file: .studio-platform/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Studio platform (wrangler + studio-api)
