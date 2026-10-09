@@ -142,7 +142,7 @@ body.idr-open { overflow:hidden; }
   min-width:88px; padding:12px 8px; border:1px solid currentColor; border-radius:10px;
 }
 .sd-num { font-size:28px; font-weight:600; line-height:1; }
-.sd-cap { font-size:9px; letter-spacing:.2em; text-transform:uppercase; opacity:.75; margin-top:5px; }
+.sd-cap { font-size:9px; letter-spacing:.2em; text-transform:uppercase; margin-top:5px; }   /* no opacity: faded, it failed AA contrast */
 .sd-headmeta { min-width:0; }
 .sd-headmeta p { margin:0 0 5px; }
 .sd-place { font-size:15px; }

@@ -13,6 +13,8 @@ const config: SiteConfig = {
     readyURL: 'http://127.0.0.1:8765/tracker/version.json',
   },
   baseURL: 'http://127.0.0.1:8765/tracker/',
+  // npm run test:live, after a change lands on main (Cloudflare serves tracker/ at the root).
+  liveURL: 'https://art-show-tracker.bobdylan2000.workers.dev/',
 
   // Every page in nav.js's menu, plus the embed widget.
   pages: [

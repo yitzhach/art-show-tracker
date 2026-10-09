@@ -25,10 +25,15 @@ It prints what it guessed about the site. Then:
 
 1. Read `qa/site.config.ts` and fix every line marked `CHECK`:
    - how to start the site (from `package.json` scripts and the README)
-   - its address
+   - its address, and `liveURL` if it is deployed
    - the full list of pages, including routes in an app
+   - `views`, if the app opens windows, panels or tabs without changing the
+     URL (a desktop-style app, a dashboard with tabs): the container of the
+     buttons that open them, their names, and the selector of the opened view.
+     Without it the audit only sees each page as it first loads.
 
-   If tests need today's date pinned, set `fixedTime`.
+   If tests need today's date pinned, set `fixedTime`. Also act on any
+   `CHECK` the installer printed (Vitest or Jest it could not patch).
 2. `npm ci --prefix qa`, then `npm --prefix qa test` with no baseline. Read
    `qa/results/audit.json`, decide which findings are real bugs and which are
    the site working as designed:
@@ -37,19 +42,37 @@ It prints what it guessed about the site. Then:
      unless asked.
 3. `npm --prefix qa run audit:baseline` records the real bugs as known issues.
    `npm --prefix qa test` must then pass.
-4. Add two lines to the project's CLAUDE.md (create it if missing):
-   ```
-   npm ci --prefix qa && npm --prefix qa test   # browser tests → qa/results/audit.json
-   qa/browse open <url>                         # read and drive a page as text
-   ```
-5. Commit `qa/`, `.github/workflows/site-qa.yml` and `.claude/skills/site-qa/`.
-   Tell the user what the audit found, in plain words, and offer to fix it.
+4. The installer added the **Site QA workflow** block to CLAUDE.md (below).
+   Run the project's own tests too: they must still pass.
+5. Commit `qa/`, `.github/workflows/site-qa.yml`, `.claude/skills/site-qa/`
+   and CLAUDE.md on a side branch. Tell the user what the audit found, in
+   plain words, and propose fixes. Change no site code until they approve.
+
+## The workflow (every change, once site-qa is in)
+
+The installer writes this into CLAUDE.md between site-qa markers; `update`
+keeps it current. Follow it unless the project's CLAUDE.md says otherwise.
+
+1. Work on a side branch, never straight on the branch that deploys.
+2. Test a local build with `npm --prefix qa test`.
+3. Report findings in plain words first; no site code changes until the
+   owner approves which fixes.
+4. Fix in small batches; the project's tests and `npm --prefix qa test` pass
+   after each.
+5. Anything near saved data: also check existing data with a second tab open.
+6. Land on the deploying branch only on the owner's word, then
+   `npm --prefix qa run test:live`. In a cloud session the live host must be
+   under Allowed domains in the environment's network settings.
+
+Tedious sweeps (triage, reading long results) may go to a Haiku subagent;
+decisions and code stay in the main session.
 
 ## Update it
 
 Same clone, then `node "${TMPDIR:-/tmp}/site-qa/bin/site-qa.mjs" update .`. It
 replaces only the shared files. It never touches `qa/site.config.ts`,
-`qa/audit-baseline.json` or `qa/tests/site/`. If it says the dependencies
+`qa/audit-baseline.json` or `qa/tests/site/`, and refreshes only the site-qa
+block in CLAUDE.md. If it says the dependencies
 changed, run `npm ci --prefix qa`. Then run the tests and commit.
 
 ## Run it
@@ -65,7 +88,9 @@ changed, run `npm ci --prefix qa`. Then run the tests and commit.
    - `unlistedPages` are pages the site links to that the audit skips. Add
      them to `qa/site.config.ts`.
 
-   A spec failure prints its assertion in the run output. To rerun one page:
+   A `views.spec.ts` failure lists that view's new findings; a bug the owner
+   hasn't approved fixing, or something by design, goes in `views.known`
+   with why. A spec failure prints its assertion in the run output. To rerun one page:
    `npm --prefix qa run audit -- -g <page> --project=phone`.
 4. Also run any other test suites the project's CLAUDE.md lists.
 

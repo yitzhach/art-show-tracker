@@ -50,7 +50,7 @@ export type AuditResult = {
   accepted?: { key: string; count: number; why: string }[];
 };
 
-const A11Y_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+export const A11Y_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const MAX_LINKS = 200;
 
 export async function auditPage(page: Page, opts: {

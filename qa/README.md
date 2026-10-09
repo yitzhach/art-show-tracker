@@ -42,6 +42,8 @@ npm --prefix qa test                     # everything; starts the site itself
 npm --prefix qa run audit                # just the audit
 npm --prefix qa run audit -- -g <page> --project=phone   # one page, one size
 SITE_QA_URL=https://example.com/ npm --prefix qa run audit   # a deployed copy
+npm --prefix qa run test:live           # everything, against liveURL
+npm --prefix qa test -- tests/views.spec.ts   # just the views (windows, panels, tabs)
 npm --prefix qa run report               # open the last HTML report
 qa/browse open <url>                     # drive a page by hand, as text
 ```

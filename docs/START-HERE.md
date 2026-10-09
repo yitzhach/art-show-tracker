@@ -453,6 +453,20 @@ grade of it).
   `pnpm/action-setup@v6` (Node 24 runtimes; the Node 20 warning is gone).
   site-qa's template carries the same versions, so "update site-qa" keeps them.
 
+**Shipped 2026-10-09 (later) — panels opened, live checks:**
+
+- `qa/tests/site/opened.spec.ts` opens 15 drawers, dialogs and menus across
+  the pages and audits each open (errors, axe scoped to the panel, phone
+  scroll and sub-16px fields). It found two, both fixed: the show drawer's
+  "fit" caption was faded below AA contrast, and the calendar's new-event
+  fields were 15px on phones. Not covered: the assistant panel (signed in
+  only) and views that need saved data (debrief, calendar quick look).
+  site-qa's own `views.spec.ts` is for one-page apps; `views` stays unset here.
+- `npm --prefix qa run test:live` audits https://art-show-tracker.bobdylan2000.workers.dev/
+  (`liveURL`). Run it after a change reaches `main`.
+- CLAUDE.md now carries site-qa's workflow block (side branch → report →
+  approved fixes → live check). `update site-qa` refreshes it.
+
 **Open, not started:**
 
 - The portfolio site has no CI audit (it was checked by hand once, clean).
