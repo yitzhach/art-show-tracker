@@ -457,8 +457,12 @@ grade of it).
 
 - The portfolio site has no CI audit (it was checked by hand once, clean).
   Adding it means a second `site.config` or its own repo.
-- `e2e/two-devices.cjs` hung once on CI after "the pull did not overwrite the
-  edit…" (passed on re-run). Watch for a repeat.
+- `e2e/two-devices.cjs` hung once on CI (run 28, attempt 1) right after "the
+  pull did not overwrite the edit…": a `sync()` that never answered, cause not
+  found (repeated local runs all passed). It can no longer hang: each sync has
+  30s and the run 4 minutes (CI step: 6), and a timeout prints the device, its
+  sync status and pending count, and the last check. If it fails that way,
+  start from that message.
 - The site-qa plugin (`/plugin marketplace add yitzhach/site-qa`) passed
   `claude plugin validate` but hasn't been installed on a real machine yet.
 

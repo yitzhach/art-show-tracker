@@ -53,5 +53,6 @@ jobs:
         env: { HTTPS_PROXY: "http://127.0.0.1:9", HTTP_PROXY: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1,localhost" }
         run: node build/run-suites.cjs
       - name: Two devices, offline, against studio-api
+        timeout-minutes: 6
         env: { HTTPS_PROXY: "http://127.0.0.1:9", HTTP_PROXY: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1,localhost", STUDIO_PLATFORM: .studio-platform }
         run: node e2e/two-devices.cjs

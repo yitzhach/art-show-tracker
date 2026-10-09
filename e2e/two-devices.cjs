@@ -43,7 +43,9 @@ const WINTER_PARK = SEASON.shows[0];
 
 const fails = [];
 let passed = 0;
+let lastStep = 'start';
 function check(name, ok, detail) {
+  lastStep = name;
   if (ok) passed++; else fails.push(name + (detail ? ' — ' + detail : ''));
   console.log((ok ? '  PASS  ' : '  FAIL  ') + name + (detail ? '  — ' + detail : ''));
 }
@@ -111,7 +113,26 @@ async function signIn(d) {
   await p.click('#btnStudioVerify');
   await p.waitForSelector('#st_signedIn:not([hidden])');
 }
-const sync = d => d.page.evaluate(() => ASTStudio.sync());
+/* A sync that never answers used to hang CI until the job's 25-minute limit,
+   with nothing in the log after the last PASS (art-show-tracker CI run 28). Each
+   wait now has a limit, and running out says which device and what it was doing. */
+const SYNC_MS = 30000;
+function within(ms, what, promise) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(what + ' did not finish in ' + ms / 1000 + 's')), ms);
+  })]).finally(() => clearTimeout(timer));
+}
+async function deviceState(d) {
+  return within(5000, d.name + ' state', d.page.evaluate(async () => ({
+    status: ASTStudio.status(), lastError: ASTStudio.lastError && ASTStudio.lastError(),
+    pending: await ASTStudio.pendingCount(), online: navigator.onLine
+  }))).then(JSON.stringify, e => e.message);
+}
+async function sync(d) {
+  try { await within(SYNC_MS, d.name + ' sync', d.page.evaluate(() => ASTStudio.sync())); }
+  catch (err) { err.message += '; ' + d.name + ' then: ' + await deviceState(d); throw err; }
+}
 const api = (d, url) => d.page.evaluate(u => fetch(u).then(r => r.json()), url);
 const ledgerNames = d => d.page.evaluate(() => AST.Store.list().then(l => l.map(s => s.name).sort()));
 async function controlled(d) {
@@ -120,8 +141,19 @@ async function controlled(d) {
   await d.page.waitForFunction(() => !!navigator.serviceWorker.controller);
 }
 
+// Whatever else hangs, the run ends: a normal one takes well under a minute.
+const WATCHDOG_MS = Number(process.env.E2E_WATCHDOG_MS || 240000);
+let serverProc = null;
+setTimeout(() => {
+  console.log('  FAIL  hung for ' + WATCHDOG_MS / 1000 + 's; the last check was: ' + lastStep);
+  console.log('wrangler dev, last lines:\n' + log.slice(-2000));
+  if (serverProc) serverProc.kill();
+  process.exit(1);
+}, WATCHDOG_MS).unref();
+
 (async () => {
   const { proc, state } = startServer();
+  serverProc = proc;
   let browser;
   try {
     await waitUp();
