@@ -430,9 +430,14 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
         data.slice(0, 3).join(' // ').slice(0, 300));
   check('a hearted show says so; a date past the window or not a date is left out',
         / \| hearted$/.test(data[2]) && !/zapp-14106|armonk/.test(lastBody.appData), data[2]);
-  /* Links are added when the reply ends, after its text has streamed in: wait
-     for them, or this reads the bubble mid-stream (it did, once, on CI). */
-  const readLinks = () => shadow(() => Array.from(document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.log .msg.bot:last-of-type a')).map(a => [a.href, a.target]));
+  /* The reply's own bubble, found by its text: past messages load in the
+     background on open and can land after it, so "the last bubble" is not
+     always this one (red on CI twice). Links are added when the reply ends. */
+  const readLinks = () => shadow(() => {
+    const bubble = Array.from(document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.log .msg.bot'))
+      .reverse().find(b => /Ann Arbor Art Fair 2027: apply by/.test(b.textContent));
+    return bubble ? Array.from(bubble.querySelectorAll('a')).map(a => [a.href, a.target]) : [];
+  });
   let links = await readLinks();
   for (let i = 0; i < 50 && links.length < 2; i++) { await page.waitForTimeout(100); links = await readLinks(); }
   check('the reply\'s application links are tappable and open in a new tab', links.length === 2 && links.every(l => /^https?:/.test(l[0]) && l[1] === '_blank'), JSON.stringify(links));
