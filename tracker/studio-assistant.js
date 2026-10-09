@@ -632,18 +632,31 @@
   Panel.prototype.load = function () {
     var self = this;
     if (!navigator.onLine) return;
+    /* The past arrives in the background. Anything said since the panel
+       opened was said after it, so it moves back below what just loaded:
+       a fast first message must not end up above its own history. */
+    function older(fn) {
+      var log = self.log, from = log.children.length;
+      var live = Array.prototype.filter.call(log.children, function (n) { return !n.hasAttribute('data-past'); });
+      fn();
+      Array.prototype.slice.call(log.children, from).forEach(function (n) { n.setAttribute('data-past', ''); });
+      live.forEach(function (n) { log.appendChild(n); });
+      log.scrollTop = log.scrollHeight;
+    }
     return fetch('/v1/assistant/thread', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (t) {
-        self.show(t);
+        older(function () { self.show(t); });
         return fetch('/v1/assistant/proposals?status=all', { credentials: 'same-origin' });
       })
       .then(function (r) { return r && r.ok ? r.json() : null; })
       .then(function (list) {
         var now = new Date().toISOString(), since = new Date(Date.now() - 12 * 3600e3).toISOString();
         // Oldest first, like the conversation: cards still waiting, and recent saves with their Undo.
-        (list && list.items || []).slice().reverse().forEach(function (p) {
-          if (p.status === 'pending' && p.expiresAt > now) self.card(p);
-          else if (p.status === 'confirmed' && p.activityId && p.updatedAt > since) self.saved(p);
+        older(function () {
+          (list && list.items || []).slice().reverse().forEach(function (p) {
+            if (p.status === 'pending' && p.expiresAt > now) self.card(p);
+            else if (p.status === 'confirmed' && p.activityId && p.updatedAt > since) self.saved(p);
+          });
         });
       })
       .catch(function () {});

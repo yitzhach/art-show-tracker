@@ -49,9 +49,10 @@ const Hero: React.FC = () => {
       </div>
       
       {/* Scroll indicator */}
-      <div 
+      <button
+        type="button"
         onClick={scrollToGallery}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 animate-bounce cursor-pointer hover:opacity-100 transition-opacity"
+        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 animate-bounce cursor-pointer hover:opacity-100 transition-opacity bg-transparent border-0 p-0"
         aria-label="Scroll to gallery"
       >
          <svg 
@@ -65,7 +66,7 @@ const Hero: React.FC = () => {
           >
             <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
           </svg>
-      </div>
+      </button>
     </section>
   );
 };

@@ -12,6 +12,10 @@
       body {
         font-family: 'Montserrat', sans-serif;
       }
+      /* iOS zooms into a field under 16px on focus and never zooms back out. */
+      input, textarea, select {
+        font-size: 16px;
+      }
       /* Custom fade transition for slideshow */
       .fade-enter {
         opacity: 0;
@@ -49,7 +53,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-white text-gray-900 antialiased">
     <div id="root"></div>

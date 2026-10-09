@@ -456,6 +456,29 @@ const GONE = { id: '01JCARD000000000000000000C', summary: 'Cancelled thing', det
   });
   check('only http(s) links become links; the rest stays text', html === 'see &lt;b&gt;<a href="https://example.test/a?b=1" target="_blank" rel="noopener noreferrer">https://example.test/a?b=1</a>&lt;/b&gt;. Then javascript:alert(1)', html);
 
+  // ---- the past loads late -------------------------------------------------------
+  console.log('\n-- a message sent before the past has loaded');
+  // The panel fetches the conversation so far in the background when it opens.
+  // A first message sent before that answer arrives must stay below it.
+  await page.route('**/v1/assistant/thread', async r => {
+    await new Promise(res => setTimeout(res, 1500));
+    r.fulfill({ json: { threadId: '01JTHREAD00000000000000000', messages: [
+      { role: 'user', content: [{ type: 'text', text: 'what is my booth at Winter Park?' }] },
+      { role: 'assistant', content: [{ type: 'text', text: 'Booth 12.' }] }] } });
+  });
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.click('studio-assistant >> .launch');
+  await page.fill(box, 'hello before the past');
+  await page.press(box, 'Enter');
+  await waitIn('.log', /Booth 12\./);
+  await page.waitForTimeout(300);
+  const order = await shadow(() => Array.from(document.querySelector('studio-assistant').shadowRoot.querySelectorAll('.log .msg')).map(m => m.textContent));
+  const idx = t => order.findIndex(x => x.indexOf(t) >= 0);
+  check('the past lands above a message sent while it loaded',
+        idx("Booth 12.") >= 0 && idx("Booth 12.") < idx("hello before the past") && idx("hello before the past") < order.lastIndexOf('OK.'),
+        JSON.stringify(order));
+  await page.unroute('**/v1/assistant/thread');
+
   check('no page errors', !errors.length, errors.slice(0, 3).join(' | '));
   await browser.close();
   console.log('\n' + passed + '/' + (passed + fails.length) + ' checks passed');

@@ -24,7 +24,8 @@ commands or the rules. Keep it this short:
 > Don't re-read the codebase — open only the files you're changing, and only
 > open `docs/build-phases.md` or `docs/handoff.md` if the task needs them.
 >
-> Before finishing: run the eleven suites, then commit, push and merge to `main`.
+> Before finishing: run the suites (`node build/run-suites.cjs`) and `/site-qa`
+> (the browser audit), then commit, push and merge to `main`.
 
 Add a line naming a file or feature if you already know where the work lives —
 that saves a search. Everything else is already loaded.
@@ -430,6 +431,35 @@ grade of it).
 ---
 
 ## What is next
+
+**Shipped 2026-10-09 — browser testing (site-qa):**
+
+- `qa/` audits every page at desktop, phone and dark (page/JS errors, broken
+  links, WCAG AA, sideways scroll, sub-16px fields) plus `qa/tests/site/`.
+  CI "Site QA" runs it on every push. `/site-qa` (skill) runs it; results are
+  `qa/results/audit.json`. The shared part lives in **yitzhach/site-qa**
+  (installer, plugin, its own CI); say "update site-qa" to pull changes,
+  "set up site-qa from yitzhach/site-qa" in any other project.
+- Every finding was fixed, so `qa/audit-baseline.json` is empty: any new
+  issue fails CI. Fixed: contrast (fit chips, status pills, calendar
+  out-of-month days, Pro cards no longer faded), sort headings use
+  `aria-pressed` + `data-dir` (not `aria-sort`), the season picker is 16px on
+  phones, the assistant keeps late-loading history above a fresh message,
+  and the portfolio site (missing `index.css`, small form fields, the scroll
+  arrow is a button).
+- Playwright is pinned at 1.56.1 (cloud sessions' Chromium). Bump it in
+  site-qa, with `ci.yml`'s copy.
+
+**Open, not started:**
+
+- The portfolio site has no CI audit (it was checked by hand once, clean).
+  Adding it means a second `site.config` or its own repo.
+- `e2e/two-devices.cjs` hung once on CI after "the pull did not overwrite the
+  edit…" (passed on re-run). Watch for a repeat.
+- GitHub warns that `actions/checkout@v4`/`setup-node@v4` run on a deprecated
+  Node 20; bump to their current majors in both workflows.
+- The site-qa plugin (`/plugin marketplace add yitzhach/site-qa`) passed
+  `claude plugin validate` but hasn't been installed on a real machine yet.
 
 **Shipped 2026-09-26:**
 
