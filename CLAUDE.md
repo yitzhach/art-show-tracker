@@ -59,10 +59,10 @@ in **plain language** — assume a beginner engineer. Aim for under ~150 words.
   `ASTMembers`, `ASTVersion`, `ASTSupabase`). Opens via `file://` by design.
 - **`build/`** — Python 3, stdlib + `openpyxl`/`zipcodes`. Writes JSON to `tracker/`.
 - **`worker/`** — Cloudflare Worker, D1 + KV + R2, wrangler 4. Complete, undeployed.
-- **`qa/`** — browser tests: TypeScript that Playwright runs directly (no build
-  step), with its own `package.json`, excluded from the root `tsconfig.json`. An
-  audit of every page at desktop and phone size and in dark mode, plus `qa/tests/site/` specs.
-  Skill: `.claude/skills/site-qa`.
+- **`qa/`** — browser tests from `yitzhach/site-qa` (skill `/site-qa`): an audit of
+  every page at desktop and phone size and in dark mode, plus `qa/tests/site/`.
+  Only `qa/site.config.ts`, `qa/audit-baseline.json` and `qa/tests/site/` are
+  this repo's; the rest is shared — change it in site-qa, then "update site-qa".
 - **Studio platform** — shows and sales sync through Isaac's studio API
   (`/v1/*`, repo `yitzhach/Art-Talk-Back`) when the device is signed in there.
   `app-worker.js` serves `tracker/` and forwards `/v1/*` to the `studio-api`
