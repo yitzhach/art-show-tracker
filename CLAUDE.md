@@ -150,6 +150,8 @@ STUDIO_PLATFORM=../Art-Talk-Back node e2e/two-devices.cjs   # offline sync, 2 de
 cd worker && npm test
 ```
 Deploy: push to `main`; Cloudflare (root `wrangler.toml`) deploys `art-show-tracker`.
+Every other branch gets a preview at `https://<branch, / as ->-art-show-tracker.bobdylan2000.workers.dev/`
+(its PR's Cloudflare comment names it); live is `https://art-show-tracker.bobdylan2000.workers.dev/`.
 Its `studio-api` binding must exist first. Staging (`studio-show-tracker-staging`)
 is deployed by Art-Talk-Back's "Deploy staging" workflow.
 
@@ -196,13 +198,18 @@ new ones fail.
    `npm --prefix qa test` must both pass.
 5. Anything near saved data: also check against existing data, with a
    second tab open.
-6. Land on the deploying branch only on the owner's word; then audit the
+6. If the host builds a preview of the branch (Cloudflare, Netlify, Vercel),
+   audit it before asking to land:
+   `SITE_QA_URL=<preview URL> npm --prefix qa test`.
+7. Land on the deploying branch only on the owner's word; then audit the
    live site: `npm --prefix qa run test:live` (`liveURL` in site.config.ts).
    A cloud session needs that host under Allowed domains in the
    environment's network settings; until then say the live check is blocked.
 
-Tedious sweeps (triage, reading long results) may go to a Haiku subagent;
-decisions and code stay in the main session.
+Tedious sweeps may go to a Haiku subagent to save usage: reading long test
+output or `audit.json`, sorting findings, listing what a page offers, checking
+many pages or links for one thing. It reports back in a few lines. Decisions,
+code changes, fixes and anything the owner approves stay in the main session.
 
 - `npm ci --prefix qa && npm --prefix qa test` — browser tests → `qa/results/audit.json`
 - `qa/browse open <url>` — read and drive a page as text
