@@ -10,6 +10,10 @@ import { defineConfig, devices } from '@playwright/test';
 import { site } from './lib/site';
 
 const CI = !!process.env.CI;
+// Behind an HTTPS proxy (a cloud sandbox) the browser finds its way out but
+// page.request, which the link check uses, does not read the environment:
+// every link on a deployed site came back "answered nothing". Hand it over.
+const PROXY = process.env.HTTPS_PROXY || process.env.https_proxy;
 
 export default defineConfig({
   testDir: './tests',
@@ -33,6 +37,7 @@ export default defineConfig({
     baseURL: site.baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    ...(PROXY ? { proxy: { server: PROXY, bypass: process.env.NO_PROXY || process.env.no_proxy } } : {}),
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
@@ -46,6 +51,8 @@ export default defineConfig({
     cwd: path.resolve(__dirname, site.serve.cwd ?? '.'),
     url: site.serve.readyURL ?? site.baseURL,
     reuseExistingServer: !CI,
-    timeout: 30_000,
+    // A cold build (typecheck + bundle on a fresh runner) often needs more
+    // than a minute; serve.timeout overrides this per project.
+    timeout: site.serve.timeout ?? 180_000,
   },
 });

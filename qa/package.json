@@ -6,6 +6,7 @@
     "test": "playwright test",
     "audit": "playwright test tests/audit.spec.ts",
     "audit:baseline": "SITE_QA_UPDATE_BASELINE=1 playwright test tests/audit.spec.ts",
+    "test:live": "SITE_QA_LIVE=1 playwright test",
     "report": "playwright show-report results/report",
     "typecheck": "tsc --noEmit -p ."
   },

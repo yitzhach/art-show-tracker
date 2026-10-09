@@ -179,3 +179,32 @@ is deployed by Art-Talk-Back's "Deploy staging" workflow.
 - Split the fee parser on whitespace runs: gains 1 show, corrupts 6
   (`zapp-14601` $375→$75). Tried, reverted.
 - Put counts or stats in this file. They rot, and it loads every session.
+
+<!-- site-qa:begin (yitzhach/site-qa writes this block; update refreshes it) -->
+## Site QA workflow (the default for every change)
+
+`qa/` is site-qa (yitzhach/site-qa): a browser audit plus this project's
+specs, at desktop size, phone size and in dark mode. Known issues sit in
+`qa/audit-baseline.json` (and `views.known` in `qa/site.config.ts`); only
+new ones fail.
+
+1. Work on a side branch, never straight on the branch that deploys.
+2. Test a local build: `npm --prefix qa test` builds, serves and audits it.
+3. Report findings in plain words first; change no app code until the owner
+   approves which fixes.
+4. Fix in small batches; after each, the project's own tests and
+   `npm --prefix qa test` must both pass.
+5. Anything near saved data: also check against existing data, with a
+   second tab open.
+6. Land on the deploying branch only on the owner's word; then audit the
+   live site: `npm --prefix qa run test:live` (`liveURL` in site.config.ts).
+   A cloud session needs that host under Allowed domains in the
+   environment's network settings; until then say the live check is blocked.
+
+Tedious sweeps (triage, reading long results) may go to a Haiku subagent;
+decisions and code stay in the main session.
+
+- `npm ci --prefix qa && npm --prefix qa test` — browser tests → `qa/results/audit.json`
+- `qa/browse open <url>` — read and drive a page as text
+- `npm --prefix qa run audit:baseline` — re-record known issues (should only shrink)
+<!-- site-qa:end -->

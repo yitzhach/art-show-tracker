@@ -599,6 +599,7 @@ body.is-splitting-v .leaflet-container { pointer-events:none; }
 @media (max-width:767px) {
   input.control, select.control, textarea.control, .control { font-size:16px; }
   select.btn-mini { font-size:16px; }   /* the ledger's season picker */
+  .cal-field input, .cal-field select, .cal-field textarea { font-size:16px; }   /* the calendar's event form */
 }
 
 .imp-steps { display:flex; gap:14px; flex-wrap:wrap; }
