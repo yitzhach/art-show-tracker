@@ -6,7 +6,7 @@ and JSON. Nobody has to look at a screenshot to know whether it passed.
 ## What runs
 
 - **The audit** (`tests/audit.spec.ts`): every page in `site.config.ts`, at
-  desktop and phone size. It checks for:
+  desktop and phone size and in dark mode. It checks for:
   - the page answering 4xx/5xx
   - uncaught JS errors and `console.error`
   - failed requests to the site's own files

@@ -6,7 +6,8 @@
 import { test, expect } from '../../lib/test';
 import { site } from '../../lib/site';
 
-test.skip(({ isMobile }) => isMobile, 'markup, not layout: one viewport is enough');
+test.skip(() => test.info().project.name !== test.info().config.projects[0].name,
+  'markup, not layout or colour: one project is enough');
 
 for (const pagePath of site.pages) {
   test(`every modal on ${pagePath} can take input`, async ({ page }) => {

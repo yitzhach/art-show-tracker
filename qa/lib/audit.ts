@@ -8,7 +8,7 @@
      js-error    an uncaught exception
      console     console.error from the page
      network     a request to the site's own origin failed or answered 4xx/5xx
-     link        an <a href> on the site's own origin answers 4xx/5xx  (desktop)
+     link        an <a href> on the site's own origin answers 4xx/5xx  (once)
      a11y        axe-core's WCAG 2.0/2.1 A and AA rules
      layout      the page scrolls sideways                              (phone)
      input-zoom  a form field under 16px, which iOS zooms into          (phone)
@@ -55,6 +55,8 @@ const MAX_LINKS = 200;
 
 export async function auditPage(page: Page, opts: {
   pagePath: string; project: string; isMobile: boolean; baseURL: string;
+  /** Fetch every link. Once per page is enough, so one project does it. */
+  checkLinks: boolean;
   /** The pages the config audits: anything else this page links to is "unlisted". */
   listed: string[];
 }): Promise<AuditResult> {
@@ -124,7 +126,7 @@ export async function auditPage(page: Page, opts: {
     const p = path.slice(baseURL.length);
     if (isPage(p) && !listed.has(norm(p))) unlisted.add(p || './');
   }
-  if (!opts.isMobile) {
+  if (opts.checkLinks) {
     for (const link of [...links].slice(0, MAX_LINKS)) {
       const res = await page.request
         .get(link, { failOnStatusCode: false, maxRedirects: 5, timeout: 10_000 })
