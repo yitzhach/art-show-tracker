@@ -176,7 +176,8 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
   await p.waitForTimeout(600);
 
   const marked = () => p.$eval('#listHead [data-sort].is-sorted',
-                               n => n.dataset.sort + ':' + n.getAttribute('aria-sort'));
+                               n => n.dataset.sort + ':' + n.dataset.dir +
+                                    (n.getAttribute('aria-pressed') === 'true' ? '' : ' (not pressed)'));
   const dayCells = () => p.$$eval('.show-row',
     n => n.map(x => (x.textContent.match(/[A-Z][a-z]{2}\s+\d{1,2}/) || [''])[0]));
 

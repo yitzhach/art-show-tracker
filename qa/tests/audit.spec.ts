@@ -13,6 +13,7 @@ for (const pagePath of site.pages) {
     async ({ page, isMobile }, testInfo) => {
       const result = setAside(await auditPage(page, {
         pagePath, project: testInfo.project.name, isMobile,
+        checkLinks: testInfo.project.name === testInfo.config.projects[0].name,
         baseURL: site.baseURL, listed: site.listedPages,
       }), site.accept);
       await testInfo.attach('site-qa-audit', { body: JSON.stringify(result), contentType: 'application/json' });

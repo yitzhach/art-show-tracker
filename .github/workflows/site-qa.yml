@@ -1,6 +1,6 @@
 name: Site QA
 
-# qa/: every page audited at desktop and phone size (load, JS and console
+# qa/: every page audited at desktop and phone size and in dark mode (load, JS and console
 # errors, broken links, accessibility, phone layout) plus qa/tests/site/.
 # Only issues qa/audit-baseline.json does not already know fail the run.
 # On a failure the HTML report and the traces are uploaded; open a trace with

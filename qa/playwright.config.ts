@@ -37,6 +37,9 @@ export default defineConfig({
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'phone', use: { ...devices['Pixel 7'] } },
+    // Colours are the main thing a theme changes; contrast is checked again here.
+    { name: 'dark', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 },
+                           colorScheme: 'dark' } },
   ],
   webServer: site.serve && {
     command: site.serve.command,

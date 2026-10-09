@@ -29,8 +29,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
-<link rel="stylesheet" href="app.css?v=04eeb67d">
-<link rel="stylesheet" href="intel.css?v=04eeb67d">
+<link rel="stylesheet" href="app.css?v=f8262d9c">
+<link rel="stylesheet" href="intel.css?v=f8262d9c">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -172,7 +172,7 @@
     </div>
     <!-- Clickable column headings. Same sort state as the rail's menu — one
          sort, two ways to reach it. -->
-    <div class="rowhead with-fit" id="rowHead" hidden role="row">
+    <div class="rowhead with-fit" id="rowHead" hidden>
       <button type="button" data-sort="name">Show</button>
       <button type="button" data-sort="place">Where</button>
       <button type="button" data-sort="date">Dates</button>
@@ -309,26 +309,26 @@
   </div>
 </section>
 
-<script src="core.js?v=04eeb67d"></script>
-<script src="pwa.js?v=04eeb67d"></script>
-<script src="studio-sdk.js?v=04eeb67d"></script>
-<script src="studio-store.js?v=04eeb67d"></script>
-<script src="studio-ui.js?v=04eeb67d"></script>
-<script src="studio-assistant.js?v=04eeb67d"></script>
-<script src="nav.js?v=04eeb67d"></script>
-<script src="version.js?v=04eeb67d"></script>
-<script src="fit.js?v=04eeb67d"></script>
-<script src="ranker.js?v=04eeb67d"></script>
-<script src="intel.js?v=04eeb67d"></script>
-<script src="members.js?v=04eeb67d"></script>
+<script src="core.js?v=f8262d9c"></script>
+<script src="pwa.js?v=f8262d9c"></script>
+<script src="studio-sdk.js?v=f8262d9c"></script>
+<script src="studio-store.js?v=f8262d9c"></script>
+<script src="studio-ui.js?v=f8262d9c"></script>
+<script src="studio-assistant.js?v=f8262d9c"></script>
+<script src="nav.js?v=f8262d9c"></script>
+<script src="version.js?v=f8262d9c"></script>
+<script src="fit.js?v=f8262d9c"></script>
+<script src="ranker.js?v=f8262d9c"></script>
+<script src="intel.js?v=f8262d9c"></script>
+<script src="members.js?v=f8262d9c"></script>
 <!-- Weather fetches at runtime from the visitor's browser; sales tax is a
      static table. Both are optional: intel-ui.js renders without either. -->
-<script src="weather.js?v=04eeb67d"></script>
-<script src="salestax.js?v=04eeb67d"></script>
-<script src="intel-ui.js?v=04eeb67d"></script>
-<script src="catalogue.js?v=04eeb67d"></script>
-<script src="store-supabase.js?v=04eeb67d"></script>
-<script src="import.js?v=04eeb67d"></script>
+<script src="weather.js?v=f8262d9c"></script>
+<script src="salestax.js?v=f8262d9c"></script>
+<script src="intel-ui.js?v=f8262d9c"></script>
+<script src="catalogue.js?v=f8262d9c"></script>
+<script src="store-supabase.js?v=f8262d9c"></script>
+<script src="import.js?v=f8262d9c"></script>
 <script type="module">
 /* ==========================================================================
    ALL SHOWS
@@ -786,11 +786,18 @@ function paintSortDir() {
   $('#fSort').value = key;
 
   /* Mark the sorted column so the heading shows which way the list is going.
-     aria-sort is what a screen reader reads; the arrow is for everyone else. */
+     The pressed button's label is what a screen reader reads; the arrow is
+     for everyone else. */
   $('#rowHead').querySelectorAll('[data-sort]').forEach(h => {
     const on = h.dataset.sort === key;
     h.classList.toggle('is-sorted', on);
-    h.setAttribute('aria-sort', on ? (desc ? 'descending' : 'ascending') : 'none');
+    /* aria-sort is only allowed on a table's column header, and this is a row
+       of buttons. The pressed button names its direction; data-dir is the
+       same fact for scripts and tests. */
+    const dir = desc ? 'descending' : 'ascending';
+    h.setAttribute('aria-pressed', String(on));
+    if (on) { h.dataset.dir = dir; h.setAttribute('aria-label', h.textContent.trim() + ', sorted ' + dir); }
+    else { delete h.dataset.dir; h.removeAttribute('aria-label'); }
     h.title = on ? label + ' — click to reverse' : 'Sort by ' + h.textContent.trim().toLowerCase();
   });
 }

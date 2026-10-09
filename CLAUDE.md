@@ -61,7 +61,7 @@ in **plain language** — assume a beginner engineer. Aim for under ~150 words.
 - **`worker/`** — Cloudflare Worker, D1 + KV + R2, wrangler 4. Complete, undeployed.
 - **`qa/`** — browser tests: TypeScript that Playwright runs directly (no build
   step), with its own `package.json`, excluded from the root `tsconfig.json`. An
-  audit of every page at desktop and phone size, plus `qa/tests/site/` specs.
+  audit of every page at desktop and phone size and in dark mode, plus `qa/tests/site/` specs.
   Skill: `.claude/skills/site-qa`.
 - **Studio platform** — shows and sales sync through Isaac's studio API
   (`/v1/*`, repo `yitzhach/Art-Talk-Back`) when the device is signed in there.

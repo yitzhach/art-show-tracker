@@ -79,7 +79,7 @@
 }
 .cal-cell:last-child { border-right:none; }
 .cal-cell.out { background:var(--surface); }
-.cal-cell.out .cal-num { opacity:.4; }
+.cal-cell.out .cal-num { color:var(--muted); }
 .cal-cell.is-clash { box-shadow:inset 0 -3px 0 var(--warn); }
 .cal-cell:hover { background:color-mix(in srgb, var(--accent) 5%, transparent); }
 
