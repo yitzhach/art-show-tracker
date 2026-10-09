@@ -1,0 +1,37 @@
+{
+  "_about": "Known issues the audit reports without failing. Only new ones fail. Rewrite from a run with `npm run audit:baseline` and review the diff: it should only shrink, unless an issue is being accepted on purpose.",
+  "desktop browse.html": {
+    "a11y:color-contrast": 63
+  },
+  "desktop calendar.html": {
+    "a11y:color-contrast": 3
+  },
+  "desktop expenses.html": {
+    "a11y:color-contrast": 8
+  },
+  "desktop index.html": {
+    "a11y:aria-allowed-attr": 4,
+    "a11y:aria-required-children": 1,
+    "a11y:aria-required-parent": 1,
+    "a11y:color-contrast": 4
+  },
+  "desktop jury.html": {
+    "a11y:color-contrast": 2
+  },
+  "phone browse.html": {
+    "a11y:color-contrast": 63
+  },
+  "phone calendar.html": {
+    "a11y:color-contrast": 3
+  },
+  "phone expenses.html": {
+    "a11y:color-contrast": 8
+  },
+  "phone index.html": {
+    "a11y:color-contrast": 4,
+    "input-zoom:font-size-under-16px": 1
+  },
+  "phone jury.html": {
+    "a11y:color-contrast": 2
+  }
+}

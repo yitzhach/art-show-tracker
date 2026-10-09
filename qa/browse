@@ -1,0 +1,29 @@
+#!/bin/sh
+# Playwright CLI (Microsoft's browser tool for coding agents), set up for this
+# machine. It reads a page as text: an accessibility snapshot whose refs (e8,
+# e25…) you act on. Nothing here depends on a screenshot.
+#
+#   qa/browse open http://127.0.0.1:8765/tracker/browse.html
+#   qa/browse snapshot            # the page as text, with refs
+#   qa/browse find "Menu"         # search the snapshot instead of reading it all
+#   qa/browse click e8            # act on a ref
+#   qa/browse console             # what the page logged
+#   qa/browse close
+#   qa/browse --help              # every command
+set -e
+QA=$(cd "$(dirname "$0")" && pwd)
+[ -x "$QA/node_modules/.bin/playwright-cli" ] || npm ci --prefix "$QA" --no-audit --no-fund >&2
+
+# Cloud sandboxes ship a Chromium under PLAYWRIGHT_BROWSERS_PATH and block
+# browser downloads: use that one. Elsewhere the CLI uses the machine's Chrome.
+if [ -z "$PLAYWRIGHT_MCP_EXECUTABLE_PATH" ] && [ -n "$PLAYWRIGHT_BROWSERS_PATH" ]; then
+  for chrome in "$PLAYWRIGHT_BROWSERS_PATH"/chromium-*/chrome-linux/chrome; do
+    if [ -x "$chrome" ]; then export PLAYWRIGHT_MCP_EXECUTABLE_PATH="$chrome"; fi
+  done
+fi
+# Chromium refuses its own sandbox when run as root, which containers are.
+if [ "$(id -u)" = 0 ]; then export PLAYWRIGHT_MCP_SANDBOX="${PLAYWRIGHT_MCP_SANDBOX:-false}"; fi
+# Snapshots and downloads land with the other results, not in the repo.
+export PLAYWRIGHT_MCP_OUTPUT_DIR="${PLAYWRIGHT_MCP_OUTPUT_DIR:-$QA/results/browse}"
+
+exec "$QA/node_modules/.bin/playwright-cli" "$@"

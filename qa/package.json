@@ -1,0 +1,20 @@
+{
+  "name": "site-qa",
+  "private": true,
+  "description": "Browser testing for this repo's site: an audit of every page plus Playwright specs. See README.md.",
+  "scripts": {
+    "test": "playwright test",
+    "audit": "playwright test tests/audit.spec.ts",
+    "audit:baseline": "SITE_QA_UPDATE_BASELINE=1 playwright test tests/audit.spec.ts",
+    "report": "playwright show-report results/report",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/cli": "0.1.21",
+    "@playwright/test": "1.56.1",
+    "@types/node": "22.20.3",
+    "playwright-core": "1.56.1",
+    "typescript": "5.9.3"
+  }
+}
