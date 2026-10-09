@@ -60,12 +60,16 @@ keeps it current. Follow it unless the project's CLAUDE.md says otherwise.
 4. Fix in small batches; the project's tests and `npm --prefix qa test` pass
    after each.
 5. Anything near saved data: also check existing data with a second tab open.
-6. Land on the deploying branch only on the owner's word, then
+6. If the host builds a preview of the branch, audit it before asking to
+   land: `SITE_QA_URL=<preview URL> npm --prefix qa test`.
+7. Land on the deploying branch only on the owner's word, then
    `npm --prefix qa run test:live`. In a cloud session the live host must be
    under Allowed domains in the environment's network settings.
 
-Tedious sweeps (triage, reading long results) may go to a Haiku subagent;
-decisions and code stay in the main session.
+Tedious sweeps may go to a Haiku subagent to save usage: reading long test
+output or `audit.json`, sorting findings, listing what a page offers, checking
+many pages or links for one thing. It reports back in a few lines. Decisions,
+code changes, fixes and anything the owner approves stay in the main session.
 
 ## Update it
 
