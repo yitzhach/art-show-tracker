@@ -1,7 +1,8 @@
 # qa/: browser testing for this site
 
-Tests the site in a real, headless browser and reports what is wrong as text
-and JSON. Nobody has to look at a screenshot to know whether it passed.
+From [yitzhach/site-qa](https://github.com/yitzhach/site-qa). It tests the
+site in a real, headless browser and reports what is wrong as text and JSON.
+Nobody has to look at a screenshot to know whether it passed.
 
 ## What runs
 
@@ -19,9 +20,19 @@ and JSON. Nobody has to look at a screenshot to know whether it passed.
 - **Site specs** (`tests/site/`): this site's own checks, written like any
   Playwright test.
 
-Every test runs with other hosts blocked and the clock frozen
-(`site.config.ts`), so a result depends on the code, not the network or the
-date.
+Every test runs with other hosts blocked (and the clock frozen if
+`site.config.ts` says so), so a result depends on the code, not the network.
+
+## Which files are whose
+
+Three things belong to this project, and `site-qa update` never touches them:
+
+- `site.config.ts`
+- `audit-baseline.json`
+- `tests/site/`
+
+Everything else is shared, and an update overwrites it. To change a shared
+file, change it in yitzhach/site-qa.
 
 ## Commands (from the repo root)
 
@@ -29,18 +40,17 @@ date.
 npm ci --prefix qa                       # once per machine or session
 npm --prefix qa test                     # everything; starts the site itself
 npm --prefix qa run audit                # just the audit
-npm --prefix qa run audit -- -g browse.html --project=phone   # one page, one size
-SITE_QA_URL=https://example.com/tracker/ npm --prefix qa run audit   # a deployed copy
+npm --prefix qa run audit -- -g <page> --project=phone   # one page, one size
+SITE_QA_URL=https://example.com/ npm --prefix qa run audit   # a deployed copy
 npm --prefix qa run report               # open the last HTML report
-qa/browse open http://127.0.0.1:8765/tracker/browse.html     # drive a page by hand, as text
+qa/browse open <url>                     # drive a page by hand, as text
 ```
 
 `qa/browse` is [Playwright CLI](https://github.com/microsoft/playwright-cli):
 `snapshot` prints the page as an accessibility tree with refs (`e8`), and
 `click e8`, `fill e25 "text"`, `console` and `requests` act on and inspect it.
 `qa/browse --help` lists every command, and `recording-stop` prints what you did
-as Playwright code for a spec. The full guide is in
-`node_modules/@playwright/cli/skills/playwright-cli/` once installed.
+as Playwright code for a spec.
 
 ## Results
 
@@ -73,24 +83,11 @@ baselined.
 push and pull request. A failed test runs once more, and a pass on that retry
 still fails the run, so a flaky test gets reported instead of hidden. On
 failure the report, traces and `audit.json` are uploaded as an artifact for
-14 days. **This repo is public, so anyone can download that artifact. Never
-put a real login or key in a test.**
+14 days. **On a public repo anyone can download that artifact. Never put a
+real login or key in a test.**
 
 ## Playwright version
 
-It's pinned at 1.56.1 because cloud sessions ship that Chromium build and
-block browser downloads. `ci.yml` uses the same version. To upgrade, bump
-`@playwright/test` and `playwright-core` together.
-
-## Using it on another site
-
-Only three things here belong to this site: `site.config.ts`,
-`audit-baseline.json` and `tests/site/`. Everything else is generic. To adopt
-it on another site:
-
-1. Copy `qa/`, the workflow and `.claude/skills/site-qa/`.
-2. Edit `site.config.ts`.
-3. Run `npm --prefix qa run audit:baseline`.
-
-Once a second site uses it, move the generic part into its own repo
-(`yitzhach/site-qa`), so a fix lands once for every site.
+It's pinned at 1.56.1 because Claude Code cloud sessions ship that Chromium
+build and block browser downloads. To upgrade, bump `@playwright/test` and
+`playwright-core` together, in yitzhach/site-qa.

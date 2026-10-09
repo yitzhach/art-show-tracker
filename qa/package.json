@@ -1,7 +1,7 @@
 {
   "name": "site-qa",
   "private": true,
-  "description": "Browser testing for this repo's site: an audit of every page plus Playwright specs. See README.md.",
+  "description": "Browser testing from yitzhach/site-qa: a page audit plus Playwright specs. See README.md.",
   "scripts": {
     "test": "playwright test",
     "audit": "playwright test tests/audit.spec.ts",

@@ -89,14 +89,16 @@ export async function auditPage(page: Page, opts: {
     if (/^Failed to load resource/.test(m.text())) return;  // network names the URL
     add({ check: 'console', id: tidy(m.text()), message: m.text().split('\n')[0] });
   });
+  const answered = new Set<string>();  // a 4xx is reported once, not again as a failure
   page.on('response', r => {
     if (!ours(r.url()) || r.status() < 400) return;
+    answered.add(r.url());
     if (r.request().isNavigationRequest() && r.frame() === page.mainFrame()) return;  // http
     add({ check: 'network', id: `${r.status()} ${rel(r.url())}`,
           message: `${r.request().method()} ${rel(r.url())} answered ${r.status()}` });
   });
   page.on('requestfailed', r => {
-    if (!ours(r.url())) return;  // other hosts are blocked on purpose
+    if (!ours(r.url()) || answered.has(r.url())) return;  // other hosts are blocked on purpose
     add({ check: 'network', id: `failed ${rel(r.url())}`,
           message: `${rel(r.url())} failed: ${r.failure()?.errorText ?? 'unknown'}` });
   });
