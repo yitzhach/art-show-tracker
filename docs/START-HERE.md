@@ -471,12 +471,16 @@ grade of it).
 
 - The portfolio site has no CI audit (it was checked by hand once, clean).
   Adding it means a second `site.config` or its own repo.
-- `e2e/two-devices.cjs` hung once on CI (run 28, attempt 1) right after "the
-  pull did not overwrite the edit…": a `sync()` that never answered, cause not
-  found (repeated local runs all passed). It can no longer hang: each sync has
-  30s and the run 4 minutes (CI step: 6), and a timeout prints the device, its
-  sync status and pending count, and the last check. If it fails that way,
-  start from that message.
+- `e2e/two-devices.cjs` "an edit made mid-sync": **cause found and fixed
+  (2026-10-26).** It hung on CI right after "the pull did not overwrite the
+  edit…" (run 28 here; three times in Art-Talk-Back #43's `show-tracker`
+  check: device 2 "syncing", 1 change pending). The test removed its
+  pull-holding route with `page.unroute` while the edit's own sync was on its
+  way; removing a route mid-request can leave a request (here the push, which
+  the route never matched) waiting forever in Chromium. A standalone repro
+  strands requests on Playwright 1.56.1 and 1.63; one route that is never
+  removed strands none. The test now uses `holdNextPull()`: one route per
+  device, never removed. The 30s-per-sync and 4-minute limits stay.
 - The site-qa plugin (`/plugin marketplace add yitzhach/site-qa`) passed
   `claude plugin validate` but hasn't been installed on a real machine yet.
 
