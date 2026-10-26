@@ -133,6 +133,29 @@ async function sync(d) {
   try { await within(SYNC_MS, d.name + ' sync', d.page.evaluate(() => ASTStudio.sync())); }
   catch (err) { err.message += '; ' + d.name + ' then: ' + await deviceState(d); throw err; }
 }
+/* Holds the device's next /v1/sync/pull: the server answers at once, the page
+   gets the answer only after release(). One route per device, added the first
+   time and never removed: removing a route while requests are on their way can
+   leave one of them waiting forever in Chromium, even a request the route never
+   matched. Here that was the kicked sync's push after "an edit made mid-sync"
+   (Art-Talk-Back #43: device 2 stuck on "syncing" with 1 change pending, and
+   art-show-tracker run 28). Adding a route while requests are out is safe. */
+async function holdNextPull(d) {
+  let release;
+  d.nextPull = new Promise(r => { release = r; });
+  if (!d.pullRouted) {
+    d.pullRouted = true;
+    await d.page.route('**/v1/sync/pull**', async route => {
+      const held = d.nextPull;
+      d.nextPull = null;
+      if (!held) return route.continue();
+      const res = await route.fetch();
+      await held;
+      await route.fulfill({ response: res });
+    });
+  }
+  return release;
+}
 const api = (d, url) => d.page.evaluate(u => fetch(u).then(r => r.json()), url);
 const ledgerNames = d => d.page.evaluate(() => AST.Store.list().then(l => l.map(s => s.name).sort()));
 async function controlled(d) {
@@ -303,23 +326,13 @@ setTimeout(() => {
     console.log('\n-- an edit made mid-sync');
     await edit(one, { notes: 'From device 1' });
     await sync(one);
-    let release;
-    const held = new Promise(r => { release = r; });
-    let seen = false;
-    await two.page.route('**/v1/sync/pull**', async route => {
-      if (seen) return route.continue();
-      seen = true;
-      const res = await route.fetch();   // the server's answer, with device 1's notes
-      await held;
-      await route.fulfill({ response: res });
-    });
+    const release = await holdNextPull(two);   // its answer carries device 1's notes
     const pulling = sync(two);
     await new Promise(r => setTimeout(r, 300));
     // A different field from device 1's, so the two should simply merge.
     await edit(two, { city: 'Typed while syncing' });
     release();
     await pulling;
-    await two.page.unroute('**/v1/sync/pull**');
     check('the pull did not overwrite the edit made while it was on its way',
           (await two.page.evaluate(id => AST.Store.get(id), WINTER_PARK.id)).city === 'Typed while syncing');
     await sync(two);
@@ -331,23 +344,13 @@ setTimeout(() => {
     // A sync asked for while one is on its way sends what was saved before the
     // ask. ("Use mine" above failed now and then: its sync came back as the one
     // already running, which had read the outbox before the change.)
-    let release2;
-    const held2 = new Promise(r => { release2 = r; });
-    let seen2 = false;
-    await two.page.route('**/v1/sync/pull**', async route => {
-      if (seen2) return route.continue();
-      seen2 = true;
-      const res = await route.fetch();
-      await held2;
-      await route.fulfill({ response: res });
-    });
+    const release2 = await holdNextPull(two);
     const first = sync(two);
     await new Promise(r => setTimeout(r, 300));
     await edit(two, { notes: 'Saved during a sync' });
     const second = sync(two);
     release2();
     await Promise.all([first, second]);
-    await two.page.unroute('**/v1/sync/pull**');
     const waiting = await two.page.evaluate(() => ASTStudio.pendingCount());
     const there = (await api(two, '/v1/shows?limit=100')).items.find(s => s.id === wp.id).notes;
     check('a sync asked for mid-sync sends the change saved before it', waiting === 0 && there === 'Saved during a sync',
