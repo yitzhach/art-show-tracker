@@ -114,7 +114,10 @@ Build in this order.
   promising a `commit` nobody writes (F10). Basic security headers on every
   response (no sniffing, no framing by other sites, a referrer policy) and a
   content security policy in report-only mode (F7) — check Cloudflare's
-  current documentation for how static assets set headers.
+  current documentation for how static assets set headers. Also: both CI
+  workflows were pinned to `ubuntu-24.04` on 2026-11-13 because the pinned
+  Playwright cannot install on the newer image; carry that pin into
+  `yitzhach/site-qa`, or "update site-qa" will undo it.
 
 **Gate A.** A fresh browser shows no trace of Isaac. A test backs up a full
 database, wipes it, restores it, and finds every collection identical. A
