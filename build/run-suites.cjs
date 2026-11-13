@@ -14,7 +14,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const ALL = ['browser', 'ledger-view', 'calendar', 'pipeline', 'ranker', 'expense',
-             'jury', 'contacts', 'route', 'pwa', 'studio', 'assistant'];
+             'jury', 'contacts', 'route', 'pwa', 'studio', 'assistant', 'backup'];
 const only = process.argv.slice(2);
 const suites = only.length ? ALL.filter(s => only.includes(s)) : ALL;
 

@@ -17,7 +17,7 @@ at a checkpoint or at something on "Still Isaac's".
 
 | Phase | What | State |
 |---|---|---|
-| A | Safe for anyone, no account needed | **next** |
+| A | Safe for anyone, no account needed | **in progress** — A1 shipped; waiting on checkpoint 1 for anything that changes stored data |
 | B | Add a show from anywhere | not started |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
@@ -124,7 +124,23 @@ database, wipes it, restores it, and finds every collection identical. A
 fixture shaped like a real schema-v11 season loads unchanged. Every suite and
 `npm --prefix qa test` pass, and the preview is audited before landing.
 
-Done so far: —
+Done so far:
+
+- **A1, 2026-11-13.** `tracker/backup.js`, "Back up" / "Restore" on the
+  ledger (the old Export / Import JSON buttons), `build/backup-tests.cjs`.
+  Decisions taken while building it:
+  - Signed in to a sync backend, a restore leaves the account's collections
+    alone (shows; in the studio, sales too) and says so. Pushing an old
+    season over a newer one on every device is not something a restore
+    should do quietly.
+  - A setting the backup does not carry is cleared on restore, so the device
+    ends up as the backup had it, not as a mix.
+  - Tombstones (deleted rows) travel in the file, so a restore does not
+    resurrect a deleted show.
+  - Not in the file: sign-in sessions, Supabase and network settings, the
+    studio's state, and the geocode / route / weather caches.
+  - Still to do under A1: the buttons are on the ledger only. Other pages
+    reach them through the menu once A4 reworks Account & sync.
 
 ---
 

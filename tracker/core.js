@@ -1090,7 +1090,30 @@ window.AST = (function () {
         write(touch(db));
         return Promise.resolve(before);
       },
-      markUsed: function () { var db = load(); write(touch(db)); }
+      markUsed: function () { var db = load(); write(touch(db)); },
+      /* ---- full backup (backup.js) -----------------------------------------
+         `dump` is the whole device database, tombstones included, as a copy.
+         `restore` replaces it with a backup's. The backup is run through the
+         same migrations and record makers as anything read from disk, so an
+         older backup comes up to date and a malformed row cannot land as-is.
+         `keep` names collections left exactly as they are, for when a sync
+         backend owns them. Returns what was there before, for Undo. */
+      dump: function () { return JSON.parse(JSON.stringify(load())); },
+      restore: function (dbLike, keep) {
+        var prev = JSON.parse(JSON.stringify(load()));
+        var next = migrate(JSON.parse(JSON.stringify(dbLike || {})));
+        next.shows = next.shows.map(makeShow);
+        next.events = (Array.isArray(next.events) ? next.events : []).map(makeEvent);
+        next.applications = next.applications.map(makeApplication);
+        next.rankers = next.rankers.map(makeRanker);
+        next.pristineSeed = !!(dbLike && dbLike.pristineSeed);
+        (keep || []).forEach(function (k) {
+          next[k] = prev[k];
+          if (k === 'shows') next.pristineSeed = !!prev.pristineSeed;
+        });
+        write(next);
+        return prev;
+      }
     };
   })();
 
