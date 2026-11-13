@@ -154,6 +154,7 @@ node build/contacts-tests.cjs
 node build/route-tests.cjs                  # pure node, no server
 node build/assistant-tests.cjs              # the assistant panel, studio answers mocked
 node build/backup-tests.cjs                 # full backup: round trip, refusals, undo
+node build/identity-tests.cjs               # no default person; Account & sync for a newcomer
 node build/run-suites.cjs                   # all of the above + pwa + studio
 npm ci --prefix qa && npm --prefix qa test  # page audit + qa specs → qa/results/audit.json
 qa/browse open <url>                        # read and drive a page as text (Playwright CLI)

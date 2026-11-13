@@ -25,17 +25,17 @@
   }
 })();
 </script>
-<title>Show Ledger — Isaac Anderson</title>
+<title>Show Ledger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
       referrerpolicy="no-referrer">
-<link rel="stylesheet" href="app.css?v=3bcae14f">
+<link rel="stylesheet" href="app.css?v=899469b8">
 <!-- The ledger shows the same fit/intel drawer the catalogue does, so it needs
      the same styles. Scoped to .idr/.fitchip/.prov and its own tokens; it adds
      to app.css rather than competing with it. -->
-<link rel="stylesheet" href="intel.css?v=3bcae14f">
+<link rel="stylesheet" href="intel.css?v=899469b8">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -49,7 +49,7 @@
 <header class="app-header">
   <div class="brand">
     <h1>Show Ledger</h1>
-    <span class="sub" id="brandSub">Isaac Anderson &middot; 2027 season</span>
+    <span class="sub" id="brandSub">Your season</span>
   </div>
   <div class="header-actions">
     <div class="viewtoggle" id="viewToggle" role="group" aria-label="Main view">
@@ -396,7 +396,23 @@
       <span id="syncStateText"></span>
     </div>
 
-    <div id="supabaseSection">
+    <!-- Said first, and plainly: a newcomer has no account, so the season lives
+         in this browser and the backup file is the only copy elsewhere. -->
+    <div class="form-row" id="whereSaved">
+      <span class="label">Where your season is saved</span>
+      <p id="whereSavedText" style="margin:6px 0 0; font-size:14px;"></p>
+      <p class="hint" id="whereSavedBackup"></p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnBackupHere" type="button">Back up</button>
+        <button class="btn btn-quiet" id="btnRestoreHere" type="button">Restore</button>
+      </div>
+    </div>
+
+    <!-- Supabase needs the artist's own database project and keys. It is kept
+         for anyone already using it and is not a newcomer's first screen. -->
+    <details id="supabaseAdvanced" style="margin-top:26px;">
+    <summary class="label" style="cursor:pointer;">Advanced: sync through your own Supabase project</summary>
+    <div id="supabaseSection" style="margin-top:18px;">
     <div class="form-row">
       <span class="label">Signed in as</span>
       <p id="acctEmail" style="margin:6px 0 0; font-size:14px;">Not signed in</p>
@@ -439,14 +455,16 @@
     </div>
     <p class="hint">Run <code>docs/supabase-schema.sql</code> in the Supabase SQL
       editor once before signing in.</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnSaveSettings" type="button">Save project</button>
+      <button class="btn btn-quiet btn-danger" id="btnForgetProject" type="button">Forget</button>
     </div>
+    </div>
+    </details>
   </div>
 
   <div class="drawer-foot">
-    <button class="btn btn-primary" id="btnSaveSettings" type="button">Save project</button>
     <button class="btn btn-quiet" id="btnCloseSettings2" type="button">Close</button>
-    <span class="spacer"></span>
-    <button class="btn btn-quiet btn-danger" id="btnForgetProject" type="button">Forget</button>
   </div>
 </section>
 
@@ -598,7 +616,7 @@
         <div class="form-row">
           <label class="label" for="shrLink">Link</label>
           <input class="control" id="shrLink" inputmode="url" autocomplete="off"
-                 placeholder="isaacandersonart.com">
+                 placeholder="yourname.com">
         </div>
         <div class="form-row shr-wide">
           <label class="check"><input type="checkbox" id="shrAlts">
@@ -716,33 +734,33 @@
      sandbox and an unverified hash would break the map outright. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
         referrerpolicy="no-referrer"></script>
-<script src="core.js?v=3bcae14f"></script>
-<script src="pwa.js?v=3bcae14f"></script>
-<script src="studio-sdk.js?v=3bcae14f"></script>
-<script src="studio-store.js?v=3bcae14f"></script>
-<script src="studio-ui.js?v=3bcae14f"></script>
-<script src="studio-assistant.js?v=3bcae14f"></script>
-<script src="nav.js?v=3bcae14f"></script>
-<script src="version.js?v=3bcae14f"></script>
-<script src="map.js?v=3bcae14f"></script>
-<script src="route.js?v=3bcae14f"></script>
+<script src="core.js?v=899469b8"></script>
+<script src="pwa.js?v=899469b8"></script>
+<script src="studio-sdk.js?v=899469b8"></script>
+<script src="studio-store.js?v=899469b8"></script>
+<script src="studio-ui.js?v=899469b8"></script>
+<script src="studio-assistant.js?v=899469b8"></script>
+<script src="nav.js?v=899469b8"></script>
+<script src="version.js?v=899469b8"></script>
+<script src="map.js?v=899469b8"></script>
+<script src="route.js?v=899469b8"></script>
 <!-- The fit/intel layer, so a show in the ledger opens the same breakdown
      it does in the catalogue. weather.js and salestax.js are optional to
      intel-ui.js, but without them the drawer silently loses two panels,
      which is worse than carrying two small files. -->
-<script src="fit.js?v=3bcae14f"></script>
-<script src="pipeline.js?v=3bcae14f"></script>
-<script src="intel.js?v=3bcae14f"></script>
-<script src="members.js?v=3bcae14f"></script>
-<script src="weather.js?v=3bcae14f"></script>
-<script src="salestax.js?v=3bcae14f"></script>
-<script src="intel-ui.js?v=3bcae14f"></script>
-<script src="store-supabase.js?v=3bcae14f"></script>
-<script src="import.js?v=3bcae14f"></script>
-<script src="import-ui.js?v=3bcae14f"></script>
-<script src="share.js?v=3bcae14f"></script>
-<script src="share-ui.js?v=3bcae14f"></script>
-<script src="backup.js?v=3bcae14f"></script>
+<script src="fit.js?v=899469b8"></script>
+<script src="pipeline.js?v=899469b8"></script>
+<script src="intel.js?v=899469b8"></script>
+<script src="members.js?v=899469b8"></script>
+<script src="weather.js?v=899469b8"></script>
+<script src="salestax.js?v=899469b8"></script>
+<script src="intel-ui.js?v=899469b8"></script>
+<script src="store-supabase.js?v=899469b8"></script>
+<script src="import.js?v=899469b8"></script>
+<script src="import-ui.js?v=899469b8"></script>
+<script src="share.js?v=899469b8"></script>
+<script src="share-ui.js?v=899469b8"></script>
+<script src="backup.js?v=899469b8"></script>
 <script type="module">
 /* ==========================================================================
    1-5. SHARED CORE
@@ -1344,6 +1362,7 @@ async function exportJSON() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   ASTBackup.markDone(payload.exportedAt);
   renderBackupNote();
+  paintWhereSaved();
   toast('Backup file made: ' + ASTBackup.describe(payload.counts) + '. Keep it somewhere safe.', null, null, 9000);
 }
 
@@ -1621,17 +1640,34 @@ function paintAccount() {
   $('#signInRow').hidden = !!sess;
   $('#signedInActions').hidden = !sess;
   $('#btnForgetProject').hidden = !cfg;
+  paintWhereSaved();
   if (window.ASTStudio && ASTStudio.active()) return;
   if (!cfg) paintSync('local');
   else if (!sess) paintSync('signed_out');
 }
 
+/* Where the season lives, in words, and when it was last backed up. Signed
+   in, the account holds the shows (and, in the studio, the sales); everything
+   else is still only in this browser, and the page must not imply otherwise. */
+function paintWhereSaved() {
+  const owned = ASTBackup.synced();
+  $('#whereSavedText').textContent = owned.length
+    ? 'Your ' + owned.join(' and ') + ' are in your account. Everything else \u2014 expenses, applications, ' +
+      'calendar, collectors \u2014 is saved only in this browser, on this device.'
+    : 'In this browser, on this device. It is not on a server, so clearing this browser\u2019s data would erase it.';
+  $('#whereSavedBackup').textContent = ASTBackup.status().text + ' A backup is one file with everything in it.';
+  const studio = !!(window.ASTStudio && ASTStudio.active());
+  $('#supabaseAdvanced').hidden = studio;
+}
+
 function openSettings() {
   lastFocus = document.activeElement;
   paintAccount();
+  const cfg = Settings.getConfig();
+  $('#supabaseAdvanced').open = !!cfg;      // shown opened only to someone already using it
   $('#overlay').hidden = false;
   $('#settingsDrawer').hidden = false;
-  $((Settings.getConfig() ? '#f_email' : '#f_supaUrl')).focus();
+  $((cfg ? '#f_email' : '#btnBackupHere')).focus();
 }
 function closeSettings() {
   $('#settingsDrawer').hidden = true;
@@ -1855,6 +1891,8 @@ if (location.hash === '#account') openSettings();
 window.addEventListener('hashchange', () => { if (location.hash === '#account') openSettings(); });
 $('#btnCloseSettings').addEventListener('click', closeSettings);
 $('#btnCloseSettings2').addEventListener('click', closeSettings);
+$('#btnBackupHere').addEventListener('click', exportJSON);
+$('#btnRestoreHere').addEventListener('click', () => $('#fileImport').click());
 $('#btnSaveSettings').addEventListener('click', saveProject);
 $('#btnForgetProject').addEventListener('click', forgetProject);
 $('#btnMagicLink').addEventListener('click', sendMagicLink);
@@ -1887,6 +1925,16 @@ $('#btnShare').addEventListener('click', () => ASTShareUI.open());
 
 $('#btnExport').addEventListener('click', exportJSON);
 renderBackupNote();
+
+/* The name in the header is the artist's own, from the share panel's "Name on
+   the card". Nothing typed = no name shown, never a placeholder person. */
+function renderBrand() {
+  const name = String((Settings.getShare() || {}).artist || '').trim();
+  $('#brandSub').textContent = name ? name + ' \u00b7 your season' : 'Your season';
+  document.title = name ? 'Show Ledger \u2014 ' + name : 'Show Ledger';
+}
+renderBrand();
+document.addEventListener('change', e => { if (e.target && e.target.id === 'shrArtist') setTimeout(renderBrand, 0); });
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());
 $('#fileImport').addEventListener('change', e => {
   const f = e.target.files && e.target.files[0];

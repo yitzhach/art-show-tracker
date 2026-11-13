@@ -17,7 +17,7 @@ at a checkpoint or at something on "Still Isaac's".
 
 | Phase | What | State |
 |---|---|---|
-| A | Safe for anyone, no account needed | **in progress** — A1 shipped; waiting on checkpoint 1 for anything that changes stored data |
+| A | Safe for anyone, no account needed | **in progress** — A1, A3, A4 shipped; waiting on checkpoint 1 for anything that changes stored data |
 | B | Add a show from anywhere | not started |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
@@ -139,8 +139,16 @@ Done so far:
     resurrect a deleted show.
   - Not in the file: sign-in sessions, Supabase and network settings, the
     studio's state, and the geocode / route / weather caches.
-  - Still to do under A1: the buttons are on the ledger only. Other pages
-    reach them through the menu once A4 reworks Account & sync.
+- **A3, 2026-11-14.** No person in the defaults: titles, header, manifest,
+  share card, caption and embed. The artist's name is the share panel's
+  "Name on the card" (one setting, already in the backup); empty means no
+  name shown. The embed now defaults to this app's own `embed.html`.
+  `build/identity-tests.cjs`. The seeded season itself is A2 and has not
+  shipped: it waits on checkpoint 1.
+- **A4, 2026-11-14.** Account & sync opens on "Where your season is saved",
+  in words, with Back up and Restore, and is reachable from the menu on every
+  page. The Supabase form is under "Advanced" and opens by itself only on a
+  device already using it.
 
 ---
 

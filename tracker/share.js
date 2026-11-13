@@ -12,7 +12,7 @@
    `mountEmbed`, which is the embed's own renderer — shared with the pasted
    snippet by serialising the same function, so the list is drawn by one
    piece of code whether it runs here, inside tracker/embed.html, or on
-   isaacandersonart.com.
+   the artist's own website.
 
    Classic script (see the note in core.js). Publishes window.ASTShare.
    ========================================================================== */
@@ -105,13 +105,14 @@ window.ASTShare = (function () {
    */
   function textBlock(rows, opts) {
     opts = opts || {};
-    var artist = opts.artist || 'Isaac Anderson';
+    var artist = String(opts.artist || '').trim();   // no name given = no name shown
     var url = (opts.url || '').replace(/^https?:\/\//, '');
     var season = seasonLabel(rows);
     var out = [];
 
     if (opts.style === 'email') {
-      out.push(artist + ' — ' + (season ? season + ' show schedule' : 'show schedule'));
+      out.push(artist ? artist + ' — ' + (season ? season + ' show schedule' : 'show schedule')
+                      : (season ? season + ' show schedule' : 'Show schedule'));
       out.push('');
       rows.forEach(function (s) {
         out.push(s.name);
@@ -123,7 +124,8 @@ window.ASTShare = (function () {
       return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
     }
 
-    out.push(artist + (season ? ' · ' + season + ' show season' : ''));
+    out.push(artist ? artist + (season ? ' · ' + season + ' show season' : '')
+                    : (season ? season + ' show season' : 'Show season'));
     out.push('');
     rows.forEach(function (s) {
       out.push(whenShort(s) + ' — ' + s.name + (where(s) ? ', ' + where(s) : ''));
@@ -152,7 +154,7 @@ window.ASTShare = (function () {
 
   /* A string with enough varied glyphs that two different typefaces are
      vanishingly unlikely to measure the same. */
-  var FONT_PROBE = 'Isaac Anderson 2027 HAMBURGEFONSTIV whqx';
+  var FONT_PROBE = 'Show Ledger 2027 HAMBURGEFONSTIV whqx';
 
   /**
    * Is Montserrat actually available to canvas, or are we on the fallback?
@@ -246,7 +248,7 @@ window.ASTShare = (function () {
     var size = SIZES[opts.size] || SIZES.square;
     var pal = PALETTE[opts.theme === 'dark' ? 'dark' : 'light'];
     var rows = (opts.rows || []).slice();
-    var artist = opts.artist || 'Isaac Anderson';
+    var artist = String(opts.artist || '').trim() || 'Show schedule';   // never a default person
     var url = (opts.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
     var kicker = opts.kicker || 'Upcoming shows';
     var season = seasonLabel(rows);
@@ -365,7 +367,7 @@ window.ASTShare = (function () {
      4. THE EMBED
      One renderer, three homes: this page's preview, tracker/embed.html
      inside an <iframe>, and the pasted script snippet on
-     isaacandersonart.com. The snippet is this exact function serialised, so
+     the artist's own website. The snippet is this exact function serialised, so
      there is no second copy to drift.
 
      `boot` must stay self-contained — no closure references, no helpers from
@@ -496,7 +498,9 @@ window.ASTShare = (function () {
   function embedSnippet(rows, opts) {
     opts = opts || {};
     if (opts.mode === 'iframe') {
-      var src = (opts.src || 'https://isaacandersonart.com/shows/embed.html').trim();
+      var src = String(opts.src || '').trim() ||
+        (typeof location !== 'undefined' && /^https?:/.test(location.protocol)
+          ? new URL('embed.html', location.href).href : 'embed.html');
       var q = [];
       if (opts.count) q.push('n=' + encodeURIComponent(opts.count));
       if (opts.theme && opts.theme !== 'auto') q.push('theme=' + encodeURIComponent(opts.theme));
