@@ -22,7 +22,9 @@ jobs:
   qa:
     # A branch in this repo is covered by its push; pull_request is for forks.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.56.1 cannot install Chromium on the Ubuntu 26.04 image that
+    # ubuntu-latest now points at. Move this when the Playwright pin moves (site-qa).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
