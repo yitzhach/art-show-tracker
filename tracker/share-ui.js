@@ -25,8 +25,8 @@ window.ASTShareUI = (function () {
   };
 
   var DEFAULTS = {
-    artist: 'Isaac Anderson',
-    link: 'isaacandersonart.com',
+    artist: '',                     // the artist types their own; never a default person
+    link: '',
     count: 5,
     statusMode: '',                 // '' = decide from the data on first open
     includeAlternates: false,
@@ -34,7 +34,7 @@ window.ASTShareUI = (function () {
     cardTheme: '',                  // '' = follow the app's theme
     textStyle: 'caption',
     embedMode: 'script',
-    embedSrc: 'https://isaacandersonart.com/shows/embed.html'
+    embedSrc: ''                    // '' = this app's own embed.html
   };
 
   var ui = {
