@@ -39,8 +39,12 @@ is the older idea list, still cited by number.
 - Never say anything is deductible. Categorising a row is bookkeeping.
 - A Pro feature is always disabled and never shows a price, plan or sign-up.
   There is no billing in this project.
-- Contacts are other people's details: device-only, never synced, exported
-  only by hand and never including anyone marked "do not contact".
+- Contacts are other people's details: device-only, never synced, and they
+  leave only by hand. The mailing CSV never includes anyone marked "do not
+  contact"; the full backup file holds everyone, and says so.
+- A backup file is untrusted input: anything that is not a backup, is from a
+  newer version, or is damaged is refused whole. A restore replaces, offers
+  Undo, and never touches what a signed-in account owns (shows; studio sales).
 - Mock jury: a juror's score is never shown as a show's acceptance odds and
   never enters the fit model. Nothing is owed until a juror claims a request.
   No uploads and no transport exist, and the page says so before you start.
@@ -97,6 +101,9 @@ fully without any of them, and from `file://` the studio is off entirely.
   gross vs. the rows, and the Square/Stripe CSV import. DOM-free.
 - `contacts.js` / `contacts.html` — collectors, follow-ups, the debrief.
   Contacts are device-only: `Store` never hands them to a sync backend.
+- `backup.js` — the full backup and restore: every collection plus hearts,
+  fit profile, private reports and prefs, in one file. DOM-free; the buttons
+  are on the ledger. Sessions, API settings and caches are never in the file.
 - `route.js` — the season plan on the ledger. Straight-line miles are a floor;
   legs are judged only against the artist's own daily limit.
 - `nav.js` — the one page menu, mounted into `.header-actions` on every page;
@@ -146,6 +153,7 @@ node build/jury-tests.cjs
 node build/contacts-tests.cjs
 node build/route-tests.cjs                  # pure node, no server
 node build/assistant-tests.cjs              # the assistant panel, studio answers mocked
+node build/backup-tests.cjs                 # full backup: round trip, refusals, undo
 node build/run-suites.cjs                   # all of the above + pwa + studio
 npm ci --prefix qa && npm --prefix qa test  # page audit + qa specs → qa/results/audit.json
 qa/browse open <url>                        # read and drive a page as text (Playwright CLI)
@@ -172,6 +180,11 @@ is deployed by Art-Talk-Back's "Deploy staging" workflow.
   dialog renders transparent and cannot be typed into at all. Three shipped
   that way and the suites missed it, because `el.click()` in a test ignores
   `pointer-events` — assert the computed style, not just that a click worked.
+- `npm --prefix qa test` saying `Executable doesn't exist … headless_shell-1194`:
+  the cloud session's Chromium is newer than the pinned Playwright. Make a
+  folder holding `chromium_headless_shell-1194/chrome-linux/headless_shell` as
+  a link to the installed headless shell under `/opt/pw-browsers`, and run with
+  `PLAYWRIGHT_BROWSERS_PATH=<that folder>`. CI installs the pinned one itself.
 - Text inputs are 16px on phones. Under that, iOS zooms in on focus and never
   zooms back out.
 

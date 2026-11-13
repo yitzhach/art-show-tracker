@@ -26,7 +26,7 @@ var SHELL = [
   './', 'index.html', 'browse.html', 'calendar.html', 'contacts.html', 'embed.html',
   'expenses.html', 'jury.html', 'map.html',
   'app.css', 'calendar.css', 'intel.css',
-  'calendar.js', 'catalogue.js', 'contacts.js', 'core.js', 'expenses.js', 'fit.js',
+  'backup.js', 'calendar.js', 'catalogue.js', 'contacts.js', 'core.js', 'expenses.js', 'fit.js',
   'import-ui.js', 'import.js', 'intel-ui.js', 'intel.js', 'jury.js', 'map.js',
   'members.js', 'nav.js', 'pipeline.js', 'plan.js', 'pwa.js', 'ranker.js', 'route.js',
   'sales.js', 'salestax.js', 'share-ui.js', 'share.js', 'store-supabase.js', 'studio-sdk.js',
