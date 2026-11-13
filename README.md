@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Show Ledger
 
-# Run and deploy your AI Studio app
+A season planner for artists who sell at juried art fairs: a catalogue of
+shows scored for fit against what you make and what it sells for, and a
+ledger for your own season — applications, calendar, route, expenses, sales
+and collectors. It runs in the browser with no account, and every number
+says where it came from.
 
-This contains everything you need to run your app locally.
+Live: https://art-show-tracker.bobdylan2000.workers.dev/
 
-View your app in AI Studio: https://ai.studio/apps/drive/1F-SWgsnIvpHho8SrolVtGAituGFTFnWf
+## Where things are
 
-## Run Locally
+| | |
+|---|---|
+| `tracker/` | The app. Plain HTML, CSS and JavaScript, no build step |
+| `build/` | The Python data build and the browser test suites |
+| `qa/` | The page audit (desktop, phone, dark mode) |
+| `worker/` | The members' intel Worker. Complete, not deployed |
+| `docs/` | Start with `START-HERE.md`; `product-plan.md` is what is being built next |
+| `App.tsx`, `components/`, `vite.config.ts` | A separate portfolio site that happens to live in this repo |
 
-**Prerequisites:**  Node.js
+## Working on it
 
+`CLAUDE.md` has the rules, the commands and the traps.
+`docs/product-plan.md` has the plan. `docs/NEXT-SESSION-PROMPT.md` is the
+prompt that starts a build session.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Pushing to `main` deploys the live site through Cloudflare.
