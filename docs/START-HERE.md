@@ -1,7 +1,14 @@
 # START HERE
 
-**Live:** https://yitzhach.github.io/newTEST/tracker/browse.html
-**Repo:** `yitzhach/newTEST` · deploys from `main` · **Phase 1 is done and shipped.**
+**Live:** https://art-show-tracker.bobdylan2000.workers.dev/
+**Repo:** `yitzhach/art-show-tracker` · deploys from `main` (Cloudflare)
+
+> **Where this is going (2026-11-13).** The tracker is being opened to other
+> artists. **`docs/product-plan.md` is the build plan: its status table says
+> what is next, and it overrides the older "What is next" notes at the bottom
+> of this file.** `docs/audit-2026-11.md` is the audit behind it.
+> `docs/NEXT-SESSION-PROMPT.md` starts a build session. Shipping is hands-off:
+> see `CLAUDE.md` → Shipping.
 
 `CLAUDE.md` at the repo root loads automatically every session and carries the
 short version — stack, commands, critical rules, the traps. This file is the
@@ -431,6 +438,10 @@ grade of it).
 ---
 
 ## What is next
+
+**From 2026-11-13 the answer is `docs/product-plan.md`** — Phase A (safe for
+anyone, no account needed) is next. What follows here is the history up to
+that point, kept because it explains why things are the way they are.
 
 **Shipped 2026-10-09 — browser testing (site-qa):**
 

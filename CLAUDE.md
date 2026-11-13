@@ -1,9 +1,12 @@
 # CLAUDE.md
 
-Art show tracker for one working artist choosing which shows to apply to. Wrong
-numbers cost real money, so unknowns stay unknown.
+Art show tracker for working artists choosing which shows to apply to. Built
+around one artist (Isaac) and now being opened to others. Wrong numbers cost
+real money, so unknowns stay unknown.
 
-**Read `docs/START-HERE.md` first.** `docs/build-phases.md` is the roadmap.
+**Read `docs/START-HERE.md` first.** `docs/product-plan.md` is the build plan
+and says what is next; `docs/audit-2026-11.md` is why. `docs/build-phases.md`
+is the older idea list, still cited by number.
 
 ## Critical rules
 - `verified` = a page was actually opened. Search never earns it.
@@ -183,6 +186,25 @@ is deployed by Art-Talk-Back's "Deploy staging" workflow.
 - Put counts or stats in this file. They rot, and it loads every session.
 
 <!-- site-qa:begin (yitzhach/site-qa writes this block; update refreshes it) -->
+## Shipping
+
+Isaac wants this hands-off (2026-11-13). Claude may open a pull request,
+merge it to `main` once every check passes, and let the deploy run, without
+asking. This replaces "wait for the owner" in steps 3 and 7 of the Site QA
+workflow below; the rest of that workflow still holds (side branch, local
+audit, preview audit, live audit after landing).
+
+- Stop for Isaac only at a checkpoint in `docs/product-plan.md`, or for
+  something on its "Still Isaac's" list: secrets, spending, deleting data or
+  a Worker, a new Worker's first deploy, a domain, real email to real people.
+- His real season is in his browser on the live site. Nothing that changes
+  how saved data is stored ships before the plan's checkpoint 1; after it, a
+  schema change needs a migration test against old data.
+- Undo: Cloudflare → Workers & Pages → `art-show-tracker` → Deployments →
+  Rollback, then revert the pull request.
+- A change that spans this repo and Art-Talk-Back uses a branch of the same
+  name in each, and ships the app before the platform (its `docs/SHIPPING.md`).
+
 ## Site QA workflow (the default for every change)
 
 `qa/` is site-qa (yitzhach/site-qa): a browser audit plus this project's
