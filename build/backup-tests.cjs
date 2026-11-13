@@ -321,6 +321,37 @@ const SETTING_KEYS = ['artShowTracker.catalogue', 'artShowTracker.artistProfile'
         afterJunk.db === beforeJunk && /newer version/.test(afterJunk.toast) && dialogs.length === 1, afterJunk.toast);
   fs.unlinkSync(tmp); fs.unlinkSync(junk);
 
+  // ---- keeping the data alive ---------------------------------------------------
+  const keep = await p.evaluate(async () => {
+    const B = window.ASTBackup;
+    const phone = { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1', maxTouchPoints: 5 };
+    return {
+      asked: await B.askToKeep(),
+      iphoneBrowser: B.needsHomeScreen(phone),
+      iphoneInstalled: B.needsHomeScreen(Object.assign({ standalone: true }, phone)),
+      ipadAsMac: B.needsHomeScreen({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1', maxTouchPoints: 5 }),
+      mac: B.needsHomeScreen({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1', maxTouchPoints: 0 }),
+      android: B.needsHomeScreen({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/126 Mobile', maxTouchPoints: 5 }),
+      hintHiddenHere: document.querySelector('#whereSavedPhone').hidden
+    };
+  });
+  check('asking the browser to keep the data never throws, whatever it answers',
+        keep.asked === true || keep.asked === false || keep.asked === null, String(keep.asked));
+  check('an iPhone in the browser is told about the home screen; an installed one is not',
+        keep.iphoneBrowser === true && keep.iphoneInstalled === false && keep.ipadAsMac === true);
+  check('a laptop or an Android phone is not shown the iPhone advice',
+        keep.mac === false && keep.android === false && keep.hintHiddenHere === true, JSON.stringify(keep));
+
+  // ---- a second tab -------------------------------------------------------------
+  const p2 = await ctx.newPage();
+  await p2.goto(BASE, { waitUntil: 'load' });
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => window.AST.Store.upsert(window.AST.makeShow({ id: 'tab2-show', name: 'Added In The Other Tab', status: 'interested' })));
+  await p.waitForTimeout(600);
+  const seen = await p.evaluate(() => document.body.innerText.includes('Added In The Other Tab'));
+  check('a show added in another tab appears here without a reload', seen === true);
+  await p2.close();
+
   check('no page errors along the way', errs.length === 0, errs.join(' | '));
 
   await b.close();

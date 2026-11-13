@@ -44,9 +44,17 @@ function check(name, ok, detail) {
 
   const sw = fs.readFileSync(path.join(DIR, 'sw.js'), 'utf8');
   const shell = JSON.parse(sw.match(/var SHELL = (\[[\s\S]*?\]);/)[1].replace(/'/g, '"'));
-  const files = fs.readdirSync(DIR).filter(f => f !== 'sw.js' && !f.startsWith('.'));
+  // `_headers` is read by Cloudflare and never served, so it is not a file a page can need.
+  const files = fs.readdirSync(DIR).filter(f => f !== 'sw.js' && !f.startsWith('.') && !f.startsWith('_'));
   const missing = files.filter(f => !shell.includes(f));
   check('the worker caches every file in tracker/', !missing.length, missing.join(', '));
+  const hdr = fs.readFileSync(path.join(DIR, '_headers'), 'utf8');
+  check('every static file is sent with the basic security headers',
+        /^\/\*\n(  .+\n)*  X-Content-Type-Options: nosniff/m.test(hdr) && /X-Frame-Options: SAMEORIGIN/.test(hdr) &&
+        /Referrer-Policy:/.test(hdr));
+  check('the content policy only reports; it must not block until inline scripts are gone',
+        /Content-Security-Policy-Report-Only:/.test(hdr) && !/^\s*Content-Security-Policy:/m.test(hdr));
+  check('the embed can still be framed on the artist\'s own site', /\/embed\.html\n  ! X-Frame-Options/.test(hdr));
   check('every file it caches exists',
         shell.filter(f => f !== './').every(f => fs.existsSync(path.join(DIR, f))));
   check('it never answers for the studio API or another origin',
