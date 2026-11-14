@@ -440,8 +440,10 @@ grade of it).
 ## What is next
 
 **From 2026-11-13 the answer is `docs/product-plan.md`** — Phase A (safe for
-anyone, no account needed) is under way: the full backup (A1) shipped, and
-`node build/backup-tests.cjs` is the thirteenth suite in `run-suites.cjs`. What follows here is the history up to
+anyone, no account needed) is nearly done: only the empty first run (A2) is
+left, half-built on a branch. **The plan's "Pick up here" section says exactly
+where to resume.** `backup-tests.cjs` and `identity-tests.cjs` are in
+`run-suites.cjs`. What follows here is the history up to
 that point, kept because it explains why things are the way they are.
 
 **Shipped 2026-10-09 — browser testing (site-qa):**

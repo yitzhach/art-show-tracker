@@ -17,7 +17,7 @@ at a checkpoint or at something on "Still Isaac's".
 
 | Phase | What | State |
 |---|---|---|
-| A | Safe for anyone, no account needed | **in progress** — A1, A3, A4, A5 and most of A6 shipped; A2 is all that is left; waiting on checkpoint 1 for anything that changes stored data |
+| A | Safe for anyone, no account needed | **in progress** — A1, A3, A4, A5 and most of A6 shipped. **Checkpoint 1 is done (2026-11-14).** A2 is half-built on a branch: see "Pick up here"; waiting on checkpoint 1 for anything that changes stored data |
 | B | Add a show from anywhere | not started |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
@@ -26,6 +26,68 @@ at a checkpoint or at something on "Still Isaac's".
 
 Update the State column, and the "Done so far" list under each phase, in the
 same pull request as the work.
+
+---
+
+## Pick up here (written 2026-11-14)
+
+**Checkpoint 1 is done.** Isaac made a full backup of his real season on
+2026-11-14 and sent the file. Changes to how saved data is stored may now
+ship, each with a migration test against old data.
+
+What his backup showed, worth knowing before touching his data: he is signed
+in to the studio (shows and sales come from the account); 16 shows, 1 test
+sale; no expenses, applications, events, contacts or debriefs yet; his share
+settings already hold his name, so removing the default did not blank his
+header.
+
+**Next: finish A2 (the empty first run).** It is half-built and NOT merged.
+The work is one commit on the branch `claude/quirky-brown-x607vs`, titled
+"WIP A2". Fetch that branch by name and cherry-pick or redo it; do not merge
+it as it stands. What it already does:
+
+- `core.js`: the seeded season is gone. A new device starts empty. `SAMPLE`
+  is six invented shows (`source: 'sample'`, ids `sample-…`), with
+  `LocalStore.hasSample()`, `loadSample()` and `removeSample()`. A device
+  still holding the untouched old seed (`pristineSeed: true`) is cleared to
+  empty when read; a device with any real write is not touched.
+- `index.html`: the empty ledger offers three starts (browse the shows, add
+  one, load the sample season); sample rows carry a "NOT REAL" tag; a
+  `#sampleNote` line with "Remove the sample shows".
+
+What is left, in order:
+
+1. `#sampleNote` is never shown: set `hidden = !LocalStore.hasSample()` in
+   the ledger's `render()`.
+2. Run `node build/run-suites.cjs`. Suites that cleared storage and then
+   relied on the nine seeded shows will fail. Fix each by giving the test
+   its own shows (or `LocalStore.loadSample()`), never by bringing a seed
+   back.
+3. Sample shows must not leave the device or pose as real: skip
+   `source: 'sample'` in the studio's "Import my existing data"
+   (`studio-store.js`, near its `pristineSeed` check), in the Supabase first
+   push (`store-supabase.js`), and in the share card, caption and embed.
+   The sample is already not offered while signed in.
+4. Tests, in a new `build/first-run-tests.cjs`: a fresh browser is empty on
+   every page; a stored database with `pristineSeed: true` comes up empty; a
+   stored database shaped like Isaac's (use the shapes in his backup, with
+   invented names) is byte-for-byte untouched; load and remove the sample;
+   the sample is not offered when a sync backend is active.
+5. `python3 build/build_fit_data.py` to stamp assets, all suites, the page
+   audit, then ship. That completes Gate A.
+
+Small things still open from Phase A, none blocking:
+
+- The version stamp still carries a `commit` field nobody writes (A6).
+- Only the ledger refreshes when another tab changes the season (A5).
+- The branch preview address is not reachable from a cloud session in the
+  "Show Tracker and Studio" environment (only the live address is allowed),
+  so previews are not audited before landing; the live site is audited
+  straight after. Isaac can add the preview host to that environment's
+  allowed domains to close this.
+- The CI runner pin (`ubuntu-24.04`) needs carrying into `yitzhach/site-qa`.
+
+**Then Phase B.**
 
 ---
 
@@ -54,7 +116,7 @@ carries on.
 
 | # | When | What Isaac does |
 |---|---|---|
-| 1 | Full backup (A1) is live | Makes one full backup of his real season and keeps the file. **No change to how saved data is stored ships before this is done** |
+| 1 | ~~Full backup (A1) is live~~ **Done 2026-11-14** | Made one full backup of his real season and kept the file |
 | 2 | End of Phase C | Runs the five-minute demo on his own phone. Decides the name and whether to buy a domain |
 | 3 | Start of Phase D | Says go. Does the parts only he can: a new database, secrets, a new Worker's first deploy |
 | 4 | Start of Phase F | Chooses the payment provider and the price |

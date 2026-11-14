@@ -211,9 +211,9 @@ audit, preview audit, live audit after landing).
 - Stop for Isaac only at a checkpoint in `docs/product-plan.md`, or for
   something on its "Still Isaac's" list: secrets, spending, deleting data or
   a Worker, a new Worker's first deploy, a domain, real email to real people.
-- His real season is in his browser on the live site. Nothing that changes
-  how saved data is stored ships before the plan's checkpoint 1; after it, a
-  schema change needs a migration test against old data.
+- His real season is in his browser on the live site. Checkpoint 1 (his full
+  backup) is done, so changes to how saved data is stored may ship, each with
+  a migration test against old data.
 - Undo: Cloudflare → Workers & Pages → `art-show-tracker` → Deployments →
   Rollback, then revert the pull request.
 - A change that spans this repo and Art-Talk-Back uses a branch of the same
