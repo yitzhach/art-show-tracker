@@ -284,6 +284,33 @@ window.ASTBackup = (function () {
     return { at: at, days: days, stale: days > 30, text: 'Last backup: ' + when + '.' };
   }
 
+  /* ---- keeping the data alive ---------------------------------------------
+     A browser may clear a website's saved data when it is short of space, and
+     iPhone Safari may after a week without a visit unless the app is on the
+     home screen. `askToKeep` asks the browser to treat this site's data as
+     the kind it does not clear by itself. Some browsers ask the person, so it
+     is only ever called from something they just did (saving, backing up),
+     never on page load. Resolves true / false, or null where the browser has
+     no such thing to ask. */
+  function askToKeep() {
+    try {
+      var st = navigator.storage;
+      if (!st || !st.persist) return Promise.resolve(null);
+      return st.persisted().then(function (kept) { return kept ? true : st.persist(); })
+               .catch(function () { return null; });
+    } catch (_) { return Promise.resolve(null); }
+  }
+  /** iPhone or iPad, opened in the browser rather than from the home screen. */
+  function needsHomeScreen(nav) {
+    nav = nav || navigator;
+    var ua = String(nav.userAgent || '');
+    var ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && nav.maxTouchPoints > 1);
+    if (!ios) return false;
+    var standalone = nav.standalone === true ||
+      (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
+    return !standalone;
+  }
+
   function fileName(when) {
     return 'show-ledger-backup-' + (when || new Date()).toISOString().slice(0, 10) + '.json';
   }
@@ -293,6 +320,7 @@ window.ASTBackup = (function () {
     SETTINGS: SETTINGS, COLLECTIONS: COLLECTIONS,
     build: build, inspect: inspect, restore: restore,
     describe: describe, countsOf: countsOf, synced: synced,
-    markDone: markDone, lastAt: lastAt, status: status, fileName: fileName
+    markDone: markDone, lastAt: lastAt, status: status, fileName: fileName,
+    askToKeep: askToKeep, needsHomeScreen: needsHomeScreen
   };
 })();

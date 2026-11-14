@@ -1,0 +1,17 @@
+# Response headers for every static file (Cloudflare Workers static assets).
+# This file is read by Cloudflare and is not itself served.
+# app-worker.js repeats the same set for "/", which it answers itself.
+#
+# The content policy is REPORT-ONLY: it logs what an enforced policy would
+# block and blocks nothing. It becomes enforced once the pages' inline scripts
+# have moved into files (docs/product-plan.md, Phase D).
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; base-uri 'self'; object-src 'none'
+
+# The embed exists to be framed on the artist's own website.
+/embed.html
+  ! X-Frame-Options

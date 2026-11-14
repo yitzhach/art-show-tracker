@@ -17,7 +17,7 @@ at a checkpoint or at something on "Still Isaac's".
 
 | Phase | What | State |
 |---|---|---|
-| A | Safe for anyone, no account needed | **in progress** — A1, A3, A4 shipped; waiting on checkpoint 1 for anything that changes stored data |
+| A | Safe for anyone, no account needed | **in progress** — A1, A3, A4, A5 and most of A6 shipped; A2 is all that is left; waiting on checkpoint 1 for anything that changes stored data |
 | B | Add a show from anywhere | not started |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
@@ -149,6 +149,17 @@ Done so far:
   in words, with Back up and Restore, and is reachable from the menu on every
   page. The Supabase form is under "Advanced" and opens by itself only on a
   device already using it.
+- **A5, 2026-11-14.** After a save or a backup the app asks the browser to
+  keep this site's data (never on page load: some browsers ask the person).
+  On an iPhone or iPad in the browser, Account & sync says to add the app to
+  the home screen and why. The ledger refreshes when another tab changes the
+  season. Not done: the other pages do not yet listen for a second tab.
+- **A6, partly, 2026-11-14.** `tracker/_headers` (no sniffing, no framing by
+  other sites except `embed.html`, a referrer policy, and a content policy in
+  report-only mode); `app-worker.js` attaches the same to "/". Cloudflare's
+  docs say `_headers` is not applied to responses a Worker builds, which is
+  why "/" is done by hand. The README was done with the plan. Still open: the
+  version stamp's `commit` field.
 
 ---
 
