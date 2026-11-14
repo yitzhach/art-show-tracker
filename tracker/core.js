@@ -98,7 +98,7 @@ window.AST = (function () {
       hidden: !!input.hidden,
       notes: input.notes || '',
       url: input.url || '',
-      source: ['manual','zapp_paste','csv','catalogue'].indexOf(input.source) !== -1 ? input.source : 'manual',
+      source: ['manual','zapp_paste','csv','catalogue','sample'].indexOf(input.source) !== -1 ? input.source : 'manual',
       /* Which catalogue record this came from, so All shows can tell you it
          is already in the ledger without matching on name. */
       catalogueId: input.catalogueId || '',
@@ -627,23 +627,25 @@ window.AST = (function () {
     };
   }
 
-  /* ---- 2. SEED — Isaac's 2027 Florida season ----------------------------
-     Stops 1-7 as signed off in design/Main.dc.html. Later stops (8-12,
-     through Apr 18) are not in the repo docs yet; add them in the drawer.  */
-  var SEED = [
-    ['1',  "Naples New Year's Art Fair",        'Naples','FL',          26.1420,-81.7948,'2027-01-02','2027-01-03','',           'accepted',   false],
-    ['2a', 'Bonita Springs National — Show 1',  'Bonita Springs','FL',  26.3398,-81.7787,'2027-01-09','2027-01-10','2026-09-15','applied',    false],
-    ['2b', 'Las Olas Art Fair Part I',          'Fort Lauderdale','FL', 26.1224,-80.1373,'2027-01-09','2027-01-10','2026-10-01','not_applying',true],
-    ['3',  'Beaux Arts Festival of Art',        'Coral Gables','FL',    25.7215,-80.2684,'2027-01-16','2027-01-17','2026-09-30','applied',    false],
-    ['4',  'IMAGES: A Festival of the Arts',    'New Smyrna Beach','FL',29.0258,-80.9270,'2027-01-22','2027-01-24','2026-10-12','interested', false],
-    ['5',  'St. Armands Circle Art Festival',   'Sarasota','FL',        27.3206,-82.5760,'2027-01-30','2027-01-31','2026-11-03','interested', false],
-    ['6a', 'Boca Raton Museum Art Festival',    'Boca Raton','FL',      26.3683,-80.1289,'2027-02-06','2027-02-07','2026-09-23','waitlist',   false],
-    ['6b', 'ArtiGras Fine Arts Festival',       'Palm Beach Gardens','FL',26.8234,-80.1387,'2027-02-06','2027-02-07','2026-09-23','interested',true],
-    ['7',  'Coconut Grove Arts Festival',       'Coconut Grove, Miami','FL',25.7282,-80.2434,'2027-02-13','2027-02-15','2026-09-08','applied', false]
+  /* ---- 2. THE SAMPLE SEASON ---------------------------------------------
+     A new device starts EMPTY. It used to be handed one artist's real season,
+     statuses and all, which was somebody's private business shown to every
+     visitor. These are the replacement: invented shows in invented towns,
+     loaded only when the artist asks, every one marked `source: 'sample'` so
+     the page can label it and remove the lot in one step. No real show, no
+     real date, no real fee. */
+  var SAMPLE = [
+    ['1',  'Sample: Harbor Lights Art Fair',      'Port Calder','FL',    27.90,-82.60,'2027-01-09','2027-01-10','2026-09-15','accepted',   false, 45, 450],
+    ['2a', 'Sample: Bayfront Fine Art Festival',  'Marlow Beach','FL',   27.20,-82.45,'2027-01-23','2027-01-24','2026-10-01','applied',    false, 40, 525],
+    ['2b', 'Sample: Old Mill Arts Weekend',       'Tannery Falls','GA',  33.10,-83.40,'2027-01-23','2027-01-24','2026-10-10','interested', true,  35, 375],
+    ['3',  'Sample: Cypress Square Art Show',     'Lake Arden','FL',     28.60,-81.30,'2027-02-06','2027-02-07','2026-10-20','waitlist',   false, 40, 600],
+    ['4',  'Sample: Riverwalk Artists Market',    'Dunmore','SC',        33.80,-79.90,'2027-02-20','2027-02-21','2026-11-05','interested', false, 30, 400],
+    ['5',  'Sample: Winter Garden Arts Festival', 'Coral Hollow','FL',   26.40,-80.20,'2027-03-06','2027-03-07','2026-11-20','declined',   false, 45, 550]
   ].map(function (r) {
-    return makeShow({ routeNumber:r[0], name:r[1], city:r[2], state:r[3], lat:r[4], lng:r[5],
+    return makeShow({ id:'sample-' + r[0], routeNumber:r[0], name:r[1], city:r[2], state:r[3], lat:r[4], lng:r[5],
                       startDate:r[6], endDate:r[7], applyBy:r[8], status:r[9], isAlternate:r[10],
-                      source:'manual' });
+                      juryFee:r[11], boothFee:r[12], source:'sample',
+                      notes:'A sample show. It is not real: the place, dates and fees are invented.' });
   });
 
   /* ---- 3. STORE ADAPTER --------------------------------------------------
@@ -790,7 +792,12 @@ window.AST = (function () {
       var db = migrate(parsed);
       // Persist the upgrade now rather than waiting for the next write, so a
       // stale version cannot sit on disk being re-migrated on every read.
-      if (was !== SCHEMA_VERSION) { try { write(db); } catch (_) {} }
+      /* A device still holding the season the app used to hand out, untouched:
+         that was never this artist's data. It goes, and the device starts
+         empty like any other. A device with one real write keeps everything. */
+      var hadSeed = db.pristineSeed === true;
+      if (hadSeed) { db.shows = []; db.pristineSeed = false; }
+      if (was !== SCHEMA_VERSION || hadSeed) { try { write(db); } catch (_) {} }
       return db;
     }
     function write(db) {
@@ -802,10 +809,8 @@ window.AST = (function () {
     function load() {
       var db = read();
       if (db) return db;
-      // A brand-new device gets the demo season. Flag it: the seed is not the
-      // user's data, so on first sign-in it must not be pushed up as if it
-      // were — a second device would duplicate the whole season.
-      return write({ schemaVersion: SCHEMA_VERSION, shows: SEED, events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [], contacts: [], debriefs: [], pristineSeed: true });
+      // A brand-new device starts empty. Nothing is invented for it.
+      return write({ schemaVersion: SCHEMA_VERSION, shows: [], events: [], applications: [], rankers: [], expenses: [], reviews: [], sales: [], contacts: [], debriefs: [], pristineSeed: false });
     }
     /** Any real write means this device's data is no longer the untouched seed. */
     function touch(db) { db.pristineSeed = false; return db; }
@@ -893,6 +898,26 @@ window.AST = (function () {
       },
       /** True while this device still holds nothing but the untouched seed. */
       isPristineSeed: function () { return !!load().pristineSeed; },
+      /* The sample season: added only when asked for, removed in one step.
+         Rows already there are left alone, so asking twice adds nothing. */
+      hasSample: function () { return live(load().shows).some(function (s) { return s.source === 'sample'; }); },
+      loadSample: function () {
+        var db = load();
+        SAMPLE.forEach(function (rec) {
+          var i = db.shows.findIndex(function (s) { return s.id === rec.id; });
+          var fresh = makeShow(Object.assign({}, rec, { deletedAt: null, updatedAt: new Date().toISOString() }));
+          if (i === -1) db.shows.push(fresh);
+          else if (db.shows[i].deletedAt) db.shows[i] = fresh;
+        });
+        write(touch(db));
+        return Promise.resolve(live(db.shows));
+      },
+      removeSample: function () {
+        var db = load();
+        db.shows = db.shows.filter(function (s) { return s.source !== 'sample'; });
+        write(touch(db));
+        return Promise.resolve(live(db.shows));
+      },
       /** Throws away the seed and takes the account's season verbatim. */
       adoptRemote: function (rows) {
         var prev = load();
@@ -1563,7 +1588,7 @@ window.AST = (function () {
     STAGES: STAGES, STAGE_LABEL: STAGE_LABEL, STAGE_SETTLED: STAGE_SETTLED,
     EVENT_KINDS: EVENT_KINDS, EVENT_KIND_LABEL: EVENT_KIND_LABEL,
     numOrNull: numOrNull, clampRating: clampRating, migrate: migrate,
-    SEED: SEED, Store: Store, LocalStore: LocalStore,
+    SAMPLE: SAMPLE, Store: Store, LocalStore: LocalStore,
     useStore: useStore, currentStore: currentStore, Settings: Settings,
     setNotifier: function (fn) { notify = fn; },
     parseISO: parseISO, today: today, daysUntil: daysUntil,

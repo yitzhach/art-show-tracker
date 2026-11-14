@@ -119,6 +119,8 @@
     </div>
 
     <div id="showList"></div>
+    <p class="list-note" id="sampleNote" hidden>These are sample shows, not real ones.
+      <button type="button" class="btn btn-quiet" id="btnRemoveSample">Remove the sample shows</button></p>
     <p class="list-note" id="listNote"></p>
     <p class="list-note" id="backupNote"></p>
     <p class="build-stamp" id="buildStamp"></p>
@@ -900,9 +902,23 @@ function renderList() {
   const list = sortedShows();
   const host = $('#showList');
   if (!list.length) {
-    host.innerHTML = '<p class="empty">' + (state.shows.length
-      ? 'No shows with that status.'
-      : 'No shows yet. Add your first one, or restore a backup.') + '</p>';
+    if (state.shows.length) {
+      host.innerHTML = '<p class="empty">No shows with that status.</p>';
+    } else {
+      /* A new device starts empty. Three honest ways in, and the sample is
+         only offered where it would stay on this device. */
+      const local = !ASTBackup.synced().length;
+      host.innerHTML = '<div class="empty" id="emptyStart">' +
+        '<p style="margin:0 0 14px;">Your season is empty. Start it one of these ways:</p>' +
+        '<div class="btn-row" style="flex-wrap:wrap;">' +
+        '<a class="btn btn-primary" href="browse.html">Browse the shows</a>' +
+        '<button type="button" class="btn" id="emptyAdd">Add a show yourself</button>' +
+        (local ? '<button type="button" class="btn btn-quiet" id="emptySample">Load a sample season</button>' : '') +
+        '</div>' +
+        '<p class="hint" style="margin:14px 0 0;">Have a backup file? Use Restore. ' +
+        (local ? 'The sample season is six invented shows, to see how the pages work; one tap removes them.' : '') +
+        '</p></div>';
+    }
     $('#listNote').textContent = '';
     return;
   }
@@ -923,6 +939,7 @@ function renderList() {
       '<span class="num' + (s.isAlternate ? ' alt' : '') + '">' + esc(s.routeNumber || '–') + '</span>' +
       '<span><span class="name" data-detail="' + esc(s.id) + '">' +
           esc(s.name || 'Untitled show') + '</span>' +
+        (s.source === 'sample' ? ' <span class="tag-test" style="font-size:11px; letter-spacing:.08em;">NOT REAL</span>' : '') +
         '<span class="place" style="display:block;">' + esc(place(s)) + '</span></span>' +
       '<span class="meta r-dates">' + esc(fmtRange(s.startDate, s.endDate)) + '</span>' +
       '<span class="' + dlClass + ' r-deadline">' + esc(dlText) + '</span>' +
@@ -1940,6 +1957,23 @@ function renderBrand() {
   document.title = name ? 'Show Ledger \u2014 ' + name : 'Show Ledger';
 }
 renderBrand();
+
+/* The sample season: loaded only when asked for, and only on a device whose
+   shows stay on the device (a signed-in account must not be sent invented shows). */
+document.addEventListener('click', async e => {
+  const id = e.target && e.target.id;
+  if (id === 'emptyAdd') { $('#btnAdd').click(); }
+  else if (id === 'emptySample') {
+    if (ASTBackup.synced().length) return;
+    await window.AST.LocalStore.loadSample();
+    await refresh();
+    toast('Sample season loaded. These shows are not real.', null, null, 6000);
+  } else if (id === 'btnRemoveSample') {
+    await window.AST.LocalStore.removeSample();
+    await refresh();
+    toast('Sample shows removed.', null, null, 3000);
+  }
+});
 
 /* Another tab changed the season: show what is saved now, so this tab cannot
    write an older copy of a show back over it. */
