@@ -23,6 +23,7 @@ at a checkpoint or at something on "Still Isaac's".
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
 | F | Paid tier | not started |
+| W | Show watch and the feed: a daily check of each show's own website, and "what's new" inside the app | **proposed 2026-11-17, not approved** — `docs/watch-and-feed-plan.md`. Waiting on Isaac's yes to its decisions W-1 … W-6. Does not change what is next: A2, then B |
 
 Update the State column, and the "Done so far" list under each phase, in the
 same pull request as the work.
