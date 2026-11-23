@@ -18,12 +18,12 @@ at a checkpoint or at something on "Still Isaac's".
 | Phase | What | State |
 |---|---|---|
 | A | Safe for anyone, no account needed | **done 2026-11-23** — A1 to A5 shipped, A6 mostly (two small items in "Pick up here"). Checkpoint 1 done 2026-11-14 |
-| B | Add a show from anywhere | **in progress** — B1 to B4 shipped 2026-11-23; next B5 (design only) |
-| C | Demo-ready | not started |
+| B | Add a show from anywhere | **done 2026-11-23** — B1 to B4 shipped, B5 designed (`docs/offer-back-design.md`) |
+| C | Demo-ready | **next** — not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
 | F | Paid tier | not started |
-| W | Show watch and the feed: a daily check of each show's own website, and "what's new" inside the app | **proposed 2026-11-17, not approved** — `docs/watch-and-feed-plan.md`. Waiting on Isaac's yes to its decisions W-1 … W-6. Does not change what is next: B |
+| W | Show watch and the feed: a daily check of each show's own website, and "what's new" inside the app | **proposed 2026-11-17, not approved** — `docs/watch-and-feed-plan.md`. Waiting on Isaac's yes to its decisions W-1 … W-6. Does not change what is next: C |
 
 Update the State column, and the "Done so far" list under each phase, in the
 same pull request as the work.
@@ -32,9 +32,12 @@ same pull request as the work.
 
 ## Pick up here (written 2026-11-23)
 
-**Phase A is done.** A2 shipped on 2026-11-23: a new browser starts empty,
-with an optional sample season of six invented shows. Gate A holds, with
-one gap: the branch preview is not audited before landing (below).
+**Phases A and B are done.** A new browser starts empty (A2). Any show's
+page, prospectus, post or email can be pasted in, or shared from an Android
+phone, and is read into the review with each value's confidence (B1–B3).
+Facts show when they were captured and the ledger asks for a look at the
+show's page near a deadline (B4). Offering facts back is designed, not built
+(B5, `docs/offer-back-design.md`).
 
 What the owner's backup (2026-11-14) showed, worth knowing before touching
 his data: he is signed in to the studio (shows and sales come from the
@@ -43,11 +46,13 @@ or debriefs yet; his share settings hold his name.
 `build/first-run-tests.cjs` holds a fixture shaped like that season
 (invented names) and checks it comes through every page byte-for-byte.
 
-**Next: B5 (a design note, nothing built), which closes Phase B.** B1 to B4 shipped: see
-Phase B's "Done so far". The paste reader's contract is the hand-written
-texts in `build/fixtures/paste/` and `expected.json` beside them; a change
-to the reader is checked against those raw texts (`build/paste-tests.cjs`).
-Phase W stays parked until the owner answers W-1 … W-6.
+**Next: Phase C, in order from C1.** C1 (the first five minutes) and C2
+(phone first) are the bulk of it; Gate C is a five-minute run on a phone,
+and its end is **checkpoint 2** (Isaac runs the demo on his own phone and
+decides the name and domain). The paste reader's contract is
+`build/fixtures/paste/` (`build/paste-tests.cjs`): check any change to it
+against those raw texts. Phase W stays parked until the owner answers
+W-1 … W-6.
 
 Small things still open from Phase A, none blocking:
 
@@ -306,6 +311,16 @@ Done so far:
     carries it in `meta.checkedAt`. Supabase has no such column, so on that
     backend a newer remote copy can blank it; Supabase is being retired (P-5).
   - Tests: `build/freshness-tests.cjs`.
+- **B5, 2026-11-23.** Designed, not built: `docs/offer-back-design.md`.
+  Facts only, chosen per fact on a screen (money unticked by default);
+  graded `member` with `captured`, `how` and `confirmations`, never
+  `verified`; a quote goes only from a public page, never from an email;
+  retractable. Ships in Phase E through its review queue.
+
+**Gate B: met.** Seven hand-written layouts plus a table and a non-show
+read to the right fields or to "not found" (`build/paste-tests.cjs`); every
+value passes through review before it is saved, and a value picked from
+several is marked low with the others named, in words on the page.
 
 ---
 
