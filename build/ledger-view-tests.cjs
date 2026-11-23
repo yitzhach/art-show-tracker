@@ -173,6 +173,10 @@ const check = (n, ok, d) => { if (ok) { pass++; console.log('  PASS  ' + n); }
      toolbar menu and from the headings, and the two never drift. */
   const LEDGER = 'http://127.0.0.1:8765/tracker/index.html';
   await p.goto(LEDGER, { waitUntil: 'networkidle' });
+  /* A new device starts empty; sorting needs rows, so load the sample season
+     (six invented shows in different statuses) rather than relying on a seed. */
+  await p.evaluate(() => window.AST.LocalStore.loadSample());
+  await p.reload({ waitUntil: 'networkidle' });
   await p.waitForTimeout(600);
 
   const marked = () => p.$eval('#listHead [data-sort].is-sorted',
