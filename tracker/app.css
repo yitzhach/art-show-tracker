@@ -661,6 +661,18 @@ body.is-splitting-v .leaflet-container { pointer-events:none; }
 .rev-input.c-low { border-bottom:2px solid var(--warn); background:color-mix(in srgb, var(--warn) 7%, var(--bg)); }
 .rev-input.is-bad { border-color:var(--danger); }
 
+/* One show under review: a form, and the reason for each flag in words. */
+.rev-one { padding:12px; }
+.rev-one.is-off { opacity:.45; }
+.rev-one-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
+.rev-one-tick { display:flex; align-items:center; gap:8px; font-size:14px; }
+.rev-one-tick input { width:18px; height:18px; accent-color:var(--accent); }
+.rev-one-row { margin:0 0 12px; }
+.rev-one-row .rev-input { display:block; width:100%; max-width:46ch; font-size:16px; }
+.rev-why { margin:4px 0 0; font-size:12px; }
+.rev-why:empty { display:none; }
+.rev-why.is-flagged { color:var(--ink); }
+
 .dupe-new { font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--s-accepted); }
 .dupe-flag {
   display:inline-block; margin-right:6px;

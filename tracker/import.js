@@ -159,17 +159,18 @@ window.ASTImport = (function () {
    * @param hint  a year to prefer when the token carries none.
    * @returns { iso, confidence }
    */
-  function settle(tok, hint) {
+  function settle(tok, hint, now) {
     if (!tok) return { iso: '', confidence: NONE };
+    var nowD = now || new Date();
     var y = tok.y;
     var guessed = false;
     if (!tok.hasYear || !y) {
       guessed = true;
-      y = hint || new Date().getFullYear();
+      y = hint || nowD.getFullYear();
       // With no hint at all, a date already well past is next year's.
       if (!hint) {
         var probe = new Date(y, tok.m - 1, tok.d);
-        if (probe < new Date(Date.now() - 120 * 86400000)) y += 1;
+        if (probe < new Date(nowD.getTime() - 120 * 86400000)) y += 1;
       }
     }
     var iso = toISO(y, tok.m, tok.d);
@@ -180,13 +181,13 @@ window.ASTImport = (function () {
    * Deadlines usually fall in the year before the show and always before it.
    * Given a show start, pick the year that puts the deadline just ahead of it.
    */
-  function settleDeadline(tok, startISO) {
+  function settleDeadline(tok, startISO, now) {
     if (!tok) return { iso: '', confidence: NONE };
     if (tok.hasYear && tok.y) {
       var direct = toISO(tok.y, tok.m, tok.d);
       return { iso: direct, confidence: direct ? HIGH : NONE };
     }
-    if (!startISO) return settle(tok, 0);
+    if (!startISO) return settle(tok, 0, now);
     var showYear = Number(startISO.slice(0, 4));
     for (var y = showYear; y >= showYear - 1; y--) {
       var iso = toISO(y, tok.m, tok.d);
@@ -486,6 +487,585 @@ window.ASTImport = (function () {
                   }),
       shape: 'blocks'
     };
+  }
+
+  /* ======================================================================
+     4b. THE GENERAL READER (plan B1)
+
+     One paste box for the text of any show page, prospectus, listing or
+     email. It decides what it is looking at and reads it:
+       - a copied table              -> the column mapper, as before;
+       - a list of several shows     -> the ZAPP-style block reader, as before;
+       - one show's page or email    -> readOne() below.
+     Nothing is fetched and nothing is saved here: every value goes to the
+     review table with its confidence. A value it cannot read comes back
+     empty ("not found"), never a guess; where the text offers a choice (two
+     deadlines, three booth sizes) the pick is marked low and the note names
+     the others. The fixtures in build/fixtures/paste/ are the contract:
+     check a change against those raw texts, not by reading this code.
+     ====================================================================== */
+  var STATE_NAMES = {
+    'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA','Colorado':'CO',
+    'Connecticut':'CT','Delaware':'DE','District of Columbia':'DC','Florida':'FL','Georgia':'GA',
+    'Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA','Kansas':'KS',
+    'Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD','Massachusetts':'MA',
+    'Michigan':'MI','Minnesota':'MN','Mississippi':'MS','Missouri':'MO','Montana':'MT',
+    'Nebraska':'NE','Nevada':'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM',
+    'New York':'NY','North Carolina':'NC','North Dakota':'ND','Ohio':'OH','Oklahoma':'OK',
+    'Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC',
+    'South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT','Vermont':'VT',
+    'Virginia':'VA','Washington':'WA','West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY'
+  };
+  var STATE_ABBR = {};
+  Object.keys(STATE_NAMES).forEach(function (n) { STATE_ABBR[STATE_NAMES[n]] = true; });
+  /* Longest names first, so "West Virginia" is not read as "Virginia". */
+  var STATE_ALT = Object.keys(STATE_NAMES).sort(function (a, b) { return b.length - a.length; })
+    .map(function (n) { return n.replace(/ /g, '\\s+'); }).join('|');
+  var PLACE_RE = new RegExp(',\\s*(' + STATE_ALT + '|[A-Z]{2})(?![A-Za-z])', 'g');
+
+  var FULL_MONTHS = ['january','february','march','april','may','june','july','august',
+                     'september','october','november','december'];
+  /** A real month word only: "Mar", "Sept.", "March" — never "Mayor" or "Marching". */
+  function isMonthWord(w) {
+    var k = String(w || '').toLowerCase().replace(/\.$/, '');
+    return FULL_MONTHS.indexOf(k) !== -1 || MON[k] !== undefined;
+  }
+
+  /* Words that end a show's name. A line is a title only if it has one. */
+  var EVENT_NOUN = /^(?:festival|fair|show|market|expo|exposition|walk|exhibition|celebration|fiesta|showcase|crawl|bazaar|jubilee|fest|artfest|artsfest)$/i;
+
+  /* Labels a show page or a listing uses. Matched against the whole text
+     before a colon (or a tab), so "Late application fee" is not a jury fee. */
+  var PLABELS = [
+    { key:'name',     re:/^(?:event|show|exhibit(?:ion)?|festival|fair)\s*(?:name|title)$/i },
+    { key:'start',    re:/^(?:event|show|festival|fair)?\s*(?:start|begin(?:s|ning)?|opening)\s*(?:date|day)?$/i },
+    { key:'end',      re:/^(?:event|show|festival|fair)?\s*(?:end|ending|closing)\s*(?:date|day)?$/i },
+    { key:'dates',    re:/^(?:event|show|festival|fair)?\s*(?:dates?|when)$/i },
+    { key:'applyBy',  re:/^(?:(?:final|regular|standard|early(?:[- ]?bird)?|late)\s+)?(?:application|applications|entry|entries|submission|app|jury(?:ing)?)?\s*(?:deadline|due(?:\s*date)?)(?:\s*date)?$|^apply\s*by$|^deadline\s*to\s*apply$|^applications?\s*(?:close|closes|due)$/i },
+    { key:'notify',   re:/^(?:jury\s*)?(?:notification|notifications|results|acceptance\s*notification)s?(?:\s*date)?$/i },
+    { key:'juryFee',  re:/^(?:jury(?:ing)?|application|entry|submission|processing|app)\s*fees?$|^jury\s*\/\s*application\s*fees?$/i },
+    { key:'boothFee', re:/^(?:booth|space|exhibitor|booth\s*space)(?:\s*(?:fees?|rates?|costs?|prices?|rental))?$/i },
+    { key:'location', re:/^(?:location|venue|where|address|place|city\s*,?\s*\/?\s*state)$/i },
+    { key:'city',     re:/^city$/i },
+    { key:'state',    re:/^state$/i },
+    { key:'url',      re:/^(?:url|link|web\s*site|website|apply\s*online|apply\s*here|more\s*info(?:rmation)?|details|full\s*details)$/i },
+    { key:'subject',  re:/^(?:subject|re|fwd?)$/i }
+  ];
+  function plabelFor(text) {
+    var t = String(text || '').trim().replace(/\s+/g, ' ').replace(/[:*]+$/, '');
+    for (var i = 0; i < PLABELS.length; i++) if (PLABELS[i].re.test(t)) return PLABELS[i].key;
+    return null;
+  }
+
+  /* ---- dates, with where they sit ------------------------------------- */
+  var SEP = '\\s*(?:-|–|—|to|through|thru|&|and)\\s*';
+  var MW = '([A-Za-z]{3,9})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?!\\d)';
+  var MENTION_RES = [
+    { kind:'numRange',  re: new RegExp('(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2,4})' + SEP + '(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2,4})', 'g') },
+    { kind:'numShort',  re: new RegExp('(\\d{1,2})\\/(\\d{1,2})' + SEP + '(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2,4})', 'g') },
+    { kind:'isoRange',  re: new RegExp('(\\d{4})-(\\d{2})-(\\d{2})' + SEP + '(\\d{4})-(\\d{2})-(\\d{2})', 'g') },
+    { kind:'crossMonth',re: new RegExp(MW + '(?:\\s*,?\\s*(\\d{4}))?' + SEP + MW + '(?:\\s*,?\\s*(\\d{4}))?', 'g') },
+    { kind:'sameMonth', re: new RegExp(MW + SEP + '(\\d{1,2})(?:st|nd|rd|th)?(?!\\d)(?:\\s*,?\\s*(\\d{4}))?', 'g') },
+    { kind:'iso',       re: /(\d{4})-(\d{2})-(\d{2})/g },
+    { kind:'num',       re: /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/g },
+    { kind:'word',      re: new RegExp(MW + '(?:\\s*,?\\s*(\\d{4}))?', 'g') }
+  ];
+  function tk(y, m, d, hasYear) { return { y: hasYear ? Number(y) : 0, m: Number(m), d: Number(d), hasYear: !!hasYear }; }
+
+  /** Every date or date range in a string: { start, end|null, index, length }. */
+  function dateMentions(str) {
+    var found = [];
+    MENTION_RES.forEach(function (spec) {
+      var m;
+      spec.re.lastIndex = 0;
+      while ((m = spec.re.exec(str)) !== null) {
+        var a = null, b = null;
+        switch (spec.kind) {
+          case 'numRange':  a = tk(fullYear(m[3]), m[1], m[2], true); b = tk(fullYear(m[6]), m[4], m[5], true); break;
+          case 'numShort':  a = tk(fullYear(m[5]), m[1], m[2], true); b = tk(fullYear(m[5]), m[3], m[4], true); break;
+          case 'isoRange':  a = tk(m[1], m[2], m[3], true); b = tk(m[4], m[5], m[6], true); break;
+          case 'crossMonth':
+            if (!isMonthWord(m[1]) || !isMonthWord(m[4])) continue;
+            a = tk(m[3], monthNum(m[1]), m[2], !!m[3]); b = tk(m[6], monthNum(m[4]), m[5], !!m[6]); break;
+          case 'sameMonth':
+            if (!isMonthWord(m[1])) continue;
+            a = tk(m[4], monthNum(m[1]), m[2], !!m[4]); b = tk(m[4], monthNum(m[1]), m[3], !!m[4]); break;
+          case 'iso':  a = tk(m[1], m[2], m[3], true); break;
+          case 'num':  a = tk(fullYear(m[3]), m[1], m[2], true); break;
+          case 'word':
+            if (!isMonthWord(m[1])) continue;
+            a = tk(m[3], monthNum(m[1]), m[2], !!m[3]); break;
+        }
+        found.push({ start: a, end: b, index: m.index, length: m[0].length });
+      }
+    });
+    /* Earliest first, longest first at the same place; then no overlaps. */
+    found.sort(function (x, y) { return x.index - y.index || y.length - x.length; });
+    var out = [], until = -1;
+    found.forEach(function (f) {
+      if (f.index < until) return;
+      if (f.end) fillRangeYears(f);
+      /* A "range" longer than two weeks is two separate dates. */
+      if (f.end && f.start.hasYear && f.end.hasYear) {
+        var s = toISO(f.start.y, f.start.m, f.start.d), e = toISO(f.end.y, f.end.m, f.end.d);
+        var span = s && e ? (A.parseISO(e) - A.parseISO(s)) / 86400000 : -1;
+        if (span < 0 || span > 14) return;
+      }
+      out.push(f);
+      until = f.index + f.length;
+    });
+    return out;
+  }
+  /* "February 27 – March 1, 2027": the year written once belongs to both. */
+  function fillRangeYears(f) {
+    var a = f.start, b = f.end;
+    if (!a.hasYear && b.hasYear) { a.y = a.m > b.m ? b.y - 1 : b.y; a.hasYear = true; }
+    else if (a.hasYear && !b.hasYear) { b.y = b.m < a.m ? a.y + 1 : a.y; b.hasYear = true; }
+  }
+
+  /* What a date is FOR, from the words just before it in its sentence. */
+  var R_IGNORE  = /\bfees?\b|payment|balance|deposit|refund|cancel|withdraw|check[- ]?in|set[- ]?up|load[- ]?(?:in|out)|move[- ]?in|tear[- ]?down|unload|arriv/;
+  var R_OPENS   = /\bopen(?:s|ed|ing)?\b/;
+  var R_APPWORD = /applica|\bapply|\bentr(?:y|ies)\b|submi|registr|\bjury|\bjuried/;
+  var R_NOTIFY  = /notif|\bresults?\b|\baccepted\b|acceptance|announce|invitations? (?:will|are)/;
+  var R_DEADLINE = /deadline|apply by|due date|last day to (?:apply|enter|submit)|must be (?:received|submitted|postmarked)|postmarked by|submit(?:ted)? by|(?:received|in) by|(?:entries|applications?) (?:are |is )?due|no later than/;
+  var R_WEAK    = /\bclos(?:e|es|ed|ing)\b|\bdue\b|\buntil\b/;
+
+  function roleOf(windowText, sentence) {
+    var w = windowText.toLowerCase(), sen = sentence.toLowerCase();
+    if (R_IGNORE.test(w)) return 'ignore';
+    if (R_OPENS.test(w) && R_APPWORD.test(w)) return 'ignore';      // "applications open October 1"
+    if (R_NOTIFY.test(w)) return 'notify';
+    if (R_DEADLINE.test(w)) return 'deadline';
+    if (R_WEAK.test(w) && R_APPWORD.test(sen)) return 'deadline';
+    return 'show';
+  }
+  function tagOf(text) {
+    var t = String(text || '').toLowerCase();
+    if (/\blate\b/.test(t)) return 'late';
+    if (/\bearly\b|early[- ]?bird/.test(t)) return 'early';
+    if (/\bfinal\b|\bregular\b|\bstandard\b/.test(t)) return 'final';
+    return '';
+  }
+
+  /* ---- money ---------------------------------------------------------- */
+  var MONEY_G = /\$\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{2}))?/g;
+  function amounts(str) {
+    var out = [], m;
+    MONEY_G.lastIndex = 0;
+    while ((m = MONEY_G.exec(str)) !== null) {
+      out.push({ value: String(Number(m[1].replace(/,/g, '') + (m[2] ? '.' + m[2] : ''))), index: m.index, length: m[0].length });
+    }
+    return out;
+  }
+  var JURY_KW  = /\b(?:jury(?:ing)?|application|entry|submission|processing)\s+fees?\b/gi;
+  var BOOTH_KW = /\bbooths?(?:\s+(?:fees?|spaces?|prices?|rates?|costs?|rental))?\b|\bspace\s+fees?\b|\bexhibitor\s+fees?\b/gi;
+  var MONEY_STOP = /[·;|•]|\.(?:\s|$)|\n/;
+  var NOT_BASE_BOOTH = /add-?on|corner|extra|additional|electric|power|parking|deposit|upgrade|premium|double|tent|insurance|\blate\b/i;
+  var TEN_BY_TEN = /\b10\s*'?\s*(?:x|×|by)\s*10\b/i;
+
+  /** Money tied to a fee word in prose: right after it, else right before it. */
+  function keywordAmounts(line, kwRe, otherRe) {
+    var out = [], m;
+    kwRe.lastIndex = 0;
+    while ((m = kwRe.exec(line)) !== null) {
+      var kwEnd = m.index + m[0].length;
+      var before = line.slice(Math.max(0, m.index - 30), m.index);
+      var after = line.slice(kwEnd, kwEnd + 60);
+      var stop = after.search(MONEY_STOP);
+      if (stop !== -1) after = after.slice(0, stop);
+      otherRe.lastIndex = 0;
+      var other = otherRe.exec(after);
+      if (other) after = after.slice(0, other.index);
+      var hit = amounts(after)[0];
+      var ctx = m[0] + after;
+      if (!hit) {
+        var cut = Math.max(before.search(/[·;|•][^·;|•]*$/), before.lastIndexOf('. '));
+        if (cut !== -1) before = before.slice(cut + 1);
+        var bs = amounts(before);
+        hit = bs[bs.length - 1];
+        ctx = before + m[0];
+      }
+      if (hit) out.push({ value: hit.value, text: ctx, late: /\blate\b/i.test(line.slice(Math.max(0, m.index - 12), m.index)) });
+    }
+    return out;
+  }
+
+  /* ---- places --------------------------------------------------------- */
+  var NOT_A_CITY = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|box|po|p\.o\.)$/i;
+  /** "…in Sandpiper Bay, Florida" / "Willow Creek, GA 30000" -> [{ city, state }]. */
+  function placesIn(line) {
+    var out = [], m;
+    PLACE_RE.lastIndex = 0;
+    while ((m = PLACE_RE.exec(line)) !== null) {
+      var st = m[1].replace(/\s+/g, ' ');
+      var abbr = STATE_NAMES[st] || (STATE_ABBR[st] ? st : '');
+      if (!abbr) continue;
+      var seg = line.slice(0, m.index);
+      seg = seg.slice(Math.max(seg.lastIndexOf(','), seg.search(/[·|•(:–—][^·|•(:–—]*$/)) + 1);
+      var words = seg.trim().split(/\s+/), run = [];
+      for (var i = words.length - 1; i >= 0 && run.length < 4; i--) {
+        var w = words[i];
+        if (/^[A-Z][A-Za-z'’.\-]*$/.test(w) && !NOT_A_CITY.test(w.replace(/\.$/, '')) && !isMonthWord(w)) run.unshift(w);
+        else break;
+      }
+      if (run.length) out.push({ city: run.join(' '), state: abbr });
+    }
+    return out;
+  }
+
+  /* ---- names ---------------------------------------------------------- */
+  function cleanWord(w) { return w.replace(/^[^A-Za-z0-9&]+|[^A-Za-z0-9&.'’]+$/g, '').replace(/\.$/, ''); }
+  function isCap(w) { return /^[A-Z0-9]/.test(w) && /[A-Za-z]/.test(w); }
+  /**
+   * The show's name inside a line: the run of capitalised words that ends on
+   * an event word ("Harbor Days Art Fair"), plus a narrow "of the Arts" tail.
+   * Fewer than two words is not a name.
+   */
+  function eventPhrase(line) {
+    var words = line.split(/\s+/).filter(Boolean);
+    for (var end = words.length - 1; end >= 0; end--) {
+      var w = cleanWord(words[end]);
+      if (!EVENT_NOUN.test(w) || !isCap(w)) continue;
+      var start = end;
+      for (var i = end - 1; i >= 0; i--) {
+        var raw = words[i], c = cleanWord(raw);
+        if (/[,;:!?·|•–—(]$/.test(raw) || !c) break;          // a clause ends here
+        if (c === '&' || c === 'and') { start = i; continue; }
+        if (/^\d+(?:st|nd|rd|th)$/i.test(c)) {
+          if (/^annual$/i.test(cleanWord(words[i + 1] || ''))) { start = i; continue; }
+          break;
+        }
+        if (isCap(c)) { start = i; continue; }
+        break;
+      }
+      while (start < end && /^(?:&|and)$/.test(cleanWord(words[start]))) start++;
+      var stop = end;
+      var tail = words.slice(end + 1, end + 5).map(cleanWord);
+      if (tail[0] === 'of') {
+        var t = tail[1] === 'the' ? 2 : 1;
+        if (/^(?:Fine\s)?(?:Arts?|Crafts?|Music)$/.test(tail[t] || '')) stop = end + 1 + t;
+      }
+      var phrase = words.slice(start, stop + 1).map(function (x, k) {
+        return k === stop - start ? cleanWord(x) : x.replace(/^[^A-Za-z0-9&]+/, '');
+      }).join(' ');
+      if (stop - start >= 1) return phrase;
+    }
+    return '';
+  }
+  function looksLikeHeadline(line) {
+    var t = line.replace(/\b(?:St|Mt|Ft|Jr|Sr|Dr)\./g, 'St');
+    if (t.length < 4 || t.length > 100) return false;
+    if (/https?:\/\/|@|\$|©/.test(t)) return false;
+    if (/[.!?](?:\s|$)/.test(t)) return false;
+    if (dateMentions(t).length) return false;
+    return true;
+  }
+
+  /* ---- one show ------------------------------------------------------- */
+  /**
+   * The text of one show's page, prospectus or email -> one candidate's fields.
+   * opts: { url, now }
+   */
+  function readOne(text, opts) {
+    opts = opts || {};
+    var fields = blankFields();
+    var notes = [];
+    var lines = text.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); });
+
+    /* Label lines, including a label whose value sits on the lines below it. */
+    var entries = [], prose = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line) continue;
+      var lm = /^([^:]{1,40}):\s*(.*)$/.exec(line);
+      var key = lm && !/^https?$/i.test(lm[1].trim()) ? plabelFor(lm[1]) : null;
+      if (!key) { prose.push(line); continue; }
+      if (lm[2]) { entries.push({ key: key, label: lm[1], value: lm[2] }); continue; }
+      var j = i + 1, taken = 0;
+      while (j < lines.length && lines[j] && !/^[^:]{1,40}:\s/.test(lines[j])) {
+        if (key === 'boothFee' || !taken) entries.push({ key: key, label: lm[1], value: lines[j] });
+        taken++; j++;
+        if (key !== 'boothFee') break;
+      }
+      i = j - 1;
+    }
+    var get = function (k) { return entries.filter(function (e) { return e.key === k; }); };
+
+    /* ---- name ---- */
+    var named = get('name')[0];
+    if (named) fields.name = cell(named.value, HIGH);
+    else {
+      var heads = get('subject').map(function (e) { return e.value; })
+        .concat(prose.filter(looksLikeHeadline));
+      for (var h = 0; h < heads.length && !fields.name.value; h++) {
+        var ph = eventPhrase(heads[h]);
+        if (ph) fields.name = cell(ph, MED);
+      }
+      for (var p = 0; p < prose.length && !fields.name.value; p++) {
+        var ph2 = eventPhrase(prose[p]);
+        if (ph2) fields.name = cell(ph2, MED, 'Taken from a sentence — check it.');
+      }
+    }
+
+    /* ---- place ---- */
+    var city = get('city')[0], state = get('state')[0], loc = get('location')[0];
+    if (city) fields.city = cell(city.value, HIGH);
+    if (state) {
+      var sv = state.value.trim();
+      var sa = STATE_NAMES[sv.replace(/\b\w/g, function (c) { return c.toUpperCase(); })] || sv.toUpperCase().slice(0, 2);
+      if (STATE_ABBR[sa]) fields.state = cell(sa, HIGH);
+    }
+    if (loc && (!fields.city.value || !fields.state.value)) {
+      var lp = placesIn(loc.value)[0];
+      if (lp) {
+        if (!fields.city.value) fields.city = cell(lp.city, HIGH);
+        if (!fields.state.value) fields.state = cell(lp.state, HIGH);
+      }
+    }
+    if (!fields.city.value) {
+      var seen = {}, places = [];
+      lines.forEach(function (l) {
+        placesIn(l).forEach(function (pl) {
+          var k = pl.city.toLowerCase() + '|' + pl.state;
+          if (!seen[k]) { seen[k] = true; places.push(pl); }
+        });
+      });
+      if (places.length) {
+        var others = places.slice(1).map(function (x) { return x.city + ', ' + x.state; });
+        var pc = others.length ? LOW : MED;
+        var pn = others.length ? 'The text also names ' + others.join('; ') + '. Check which is the show.' : '';
+        fields.city = cell(places[0].city, pc, pn);
+        if (!fields.state.value) fields.state = cell(places[0].state, pc, pn);
+      }
+    }
+
+    /* ---- dates: every mention, with its role ---- */
+    var shows = [], deadlines = [], notifies = [];
+    var labelled = { dates: 1, start: 1, end: 1, applyBy: 1, notify: 1 };
+    entries.forEach(function (e) {
+      if (!labelled[e.key]) return;
+      var ms = dateMentions(e.value);
+      if (!ms.length) return;
+      var mm = ms[0];
+      if (e.key === 'dates') shows.push({ m: mm, conf: HIGH });
+      else if (e.key === 'start') shows.push({ m: { start: mm.start, end: null }, conf: HIGH, part: 'start' });
+      else if (e.key === 'end') shows.push({ m: { start: mm.start, end: null }, conf: HIGH, part: 'end' });
+      else if (e.key === 'applyBy') deadlines.push({ tok: mm.start, conf: HIGH, tag: tagOf(e.label) });
+      else notifies.push(mm.start);
+    });
+    prose.forEach(function (line) {
+      /* Split into sentences without a lookbehind, which older Safari cannot parse. */
+      var sentences = line.replace(/([.!?])\s+(?=[A-Z0-9$])/g, '$1\u0000').split('\u0000');
+      sentences.forEach(function (sen) {
+        var prevEnd = 0;
+        dateMentions(sen).forEach(function (mm) {
+          var from = Math.max(prevEnd, mm.index - 70);
+          var win = sen.slice(from, mm.index);
+          var role = roleOf(win, sen);
+          if (role === 'show') shows.push({ m: mm, conf: MED });
+          else if (role === 'deadline') deadlines.push({ tok: mm.start, conf: MED, tag: tagOf(win) });
+          else if (role === 'notify') notifies.push(mm.start);
+          prevEnd = mm.index + mm.length;
+        });
+      });
+    });
+
+    /* Show dates: labelled first; start/end labels pair up. */
+    var sStart = shows.filter(function (x) { return x.part === 'start'; })[0];
+    var sEnd = shows.filter(function (x) { return x.part === 'end'; })[0];
+    var ranges = shows.filter(function (x) { return !x.part; });
+    var pick = null, pickConf = NONE, pickNote = '';
+    if (sStart) {
+      pick = { start: sStart.m.start, end: sEnd ? sEnd.m.start : null }; pickConf = HIGH;
+      if (pick.end && !pick.start.hasYear && pick.end.hasYear) fillRangeYears(pick);
+    } else if (ranges.length) {
+      var top = ranges.filter(function (x) { return x.conf === HIGH; });
+      var pool = top.length ? top : ranges;
+      var keyOf = function (x) { return [x.m.start.y, x.m.start.m, x.m.start.d].join('-'); };
+      var distinct = [];
+      pool.forEach(function (x) { if (!distinct.some(function (d) { return keyOf(d) === keyOf(x); })) distinct.push(x); });
+      pick = distinct[0].m; pickConf = distinct[0].conf;
+      if (distinct.length > 1) {
+        pickConf = LOW;
+        pickNote = 'The text gives more than one set of dates; this is the first. Check it.';
+      }
+    }
+    if (pick) {
+      var st0 = settle(pick.start, pick.start.hasYear ? pick.start.y : 0, opts.now);
+      if (st0.iso) {
+        var c0 = st0.confidence === LOW ? LOW : pickConf;
+        fields.startDate = cell(st0.iso, c0, st0.confidence === LOW ? 'Year was not in the text — check it.' : pickNote);
+        if (pick.end) {
+          var en0 = settle(pick.end, pick.end.hasYear ? pick.end.y : Number(st0.iso.slice(0, 4)), opts.now);
+          if (en0.iso) fields.endDate = cell(en0.iso, st0.confidence === LOW || en0.confidence === LOW ? LOW : pickConf,
+            st0.confidence === LOW || en0.confidence === LOW ? 'Year was not in the text — check it.' : pickNote);
+        } else {
+          fields.endDate = cell(st0.iso, LOW, 'Only one date was given; end assumed the same day.');
+        }
+      }
+    }
+
+    /* Deadline: labelled first; never a late-entry date; never after the show. */
+    var startISO = fields.startDate.value;
+    var dls = deadlines.filter(function (d) { return d.tag !== 'late'; }).map(function (d) {
+      var r = settleDeadline(d.tok, startISO, opts.now);
+      return { iso: r.iso, conf: r.confidence === LOW ? LOW : d.conf, guessed: r.confidence === LOW, tag: d.tag };
+    }).filter(function (d) { return d.iso && (!startISO || d.iso <= startISO); });
+    var dTop = dls.filter(function (d) { return d.conf === HIGH; });
+    var dPool = dTop.length ? dTop : dls;
+    var dDistinct = [];
+    dPool.forEach(function (d) { if (!dDistinct.some(function (x) { return x.iso === d.iso; })) dDistinct.push(d); });
+    if (dDistinct.length === 1) {
+      var d1 = dDistinct[0];
+      fields.applyBy = cell(d1.iso, d1.conf, d1.guessed ? 'Deadline year was not in the text — assumed the season before the show.' : '');
+    } else if (dDistinct.length > 1) {
+      var fin = dDistinct.filter(function (d) { return d.tag === 'final'; })[0];
+      var rest = function (keep) {
+        return dDistinct.filter(function (d) { return d !== keep; }).map(function (d) { return d.iso + (d.tag ? ' (' + d.tag + ')' : ''); }).join(', ');
+      };
+      if (fin) fields.applyBy = cell(fin.iso, fin.guessed ? LOW : fin.conf, 'The text also gives ' + rest(fin) + '. This is the final deadline.');
+      else {
+        var first = dDistinct.slice().sort(function (a, b) { return a.iso < b.iso ? -1 : 1; })[0];
+        fields.applyBy = cell(first.iso, LOW, 'The text gives more than one deadline (also ' + rest(first) + '); this is the earliest. Check which applies.');
+      }
+    }
+
+    notifies.forEach(function (tok) {
+      var r = settleDeadline(tok, startISO, opts.now);
+      if (r.iso && notes.join(' ').indexOf(r.iso) === -1) notes.push('Notification date in the text: ' + r.iso + '.');
+    });
+
+    /* ---- fees ---- */
+    var juries = [], booths = [];
+    entries.forEach(function (e) {
+      if (e.key !== 'juryFee' && e.key !== 'boothFee') return;
+      var am = amounts(e.value);
+      if (!am.length && /^\s*\d+(?:\.\d{2})?\s*$/.test(e.value)) am = [{ value: String(Number(e.value)) }];
+      /* Each price keeps only its own part of the line, so "$300 (10x10) or
+         $550 (10x20)" ties each size to its price. A line that starts with a
+         price puts sizes after prices; otherwise sizes come first. */
+      var after = am.length && am[0].index === 0;
+      am.forEach(function (a, k) {
+        var part = am.length < 2 || a.index === undefined ? e.value
+          : after ? e.value.slice(a.index, am[k + 1] ? am[k + 1].index : undefined)
+                  : e.value.slice(k ? am[k - 1].index + am[k - 1].length : 0, a.index + a.length);
+        var rec = { value: a.value, text: e.label + ': ' + part.replace(/\s+(?:or|and)\s*$|^[\s,;/]+|[\s,;/]+$/g, ''), conf: HIGH, extra: k > 0 };
+        if (e.key === 'juryFee') juries.push(rec); else booths.push(rec);
+      });
+    });
+    if (!juries.length || !booths.length) {
+      prose.forEach(function (line) {
+        if (!juries.length || juries[0].conf !== HIGH) {
+          keywordAmounts(line, JURY_KW, BOOTH_KW).forEach(function (r) {
+            if (!r.late) juries.push({ value: r.value, text: r.text, conf: MED });
+          });
+        }
+        if (!booths.length || booths[0].conf !== HIGH) {
+          keywordAmounts(line, BOOTH_KW, JURY_KW).forEach(function (r) {
+            booths.push({ value: r.value, text: r.text, conf: MED });
+          });
+        }
+      });
+    }
+    var tier = function (list) {
+      var hi = list.filter(function (x) { return x.conf === HIGH; });
+      return hi.length ? hi : list;
+    };
+    var uniq = function (list) {
+      var out = [];
+      list.forEach(function (x) { if (!out.some(function (o) { return o.value === x.value; })) out.push(x); });
+      return out;
+    };
+    var jPool = uniq(tier(juries));
+    if (jPool.length === 1) fields.juryFee = cell(jPool[0].value, jPool[0].conf);
+    else if (jPool.length > 1) {
+      fields.juryFee = cell(jPool[0].value, LOW, 'The text gives more than one jury fee ($' +
+        jPool.map(function (x) { return x.value; }).join(', $') + '); this is the first. Check it.');
+    }
+    var bAll = uniq(tier(booths));
+    var bPool = bAll.filter(function (x) { return !NOT_BASE_BOOTH.test(x.text); });
+    var listed = bAll.map(function (x) { return x.text.replace(/^[^:]*:\s*/, '').trim(); }).join('; ');
+    if (bPool.length === 1) {
+      fields.boothFee = cell(bPool[0].value, bAll.length > 1 ? LOW : bPool[0].conf,
+        bAll.length > 1 ? 'The text lists more than one booth price (' + listed + '). Check it.' : '');
+    } else if (bPool.length > 1) {
+      var std = bPool.filter(function (x) { return TEN_BY_TEN.test(x.text); });
+      if (std.length === 1) {
+        fields.boothFee = cell(std[0].value, LOW, 'The text lists several booth prices (' + listed + '); this is the 10x10. Check it.');
+      } else {
+        fields.boothFee = cell('', NONE, 'The text lists several booth prices (' + listed + ') and none is plainly the standard booth.');
+      }
+    }
+
+    /* ---- link: the page the artist gave is the show's source ---- */
+    var textUrl = '';
+    var urlEntry = get('url').filter(function (e) { return URL_RE.test(e.value); })[0];
+    if (urlEntry) textUrl = URL_RE.exec(urlEntry.value)[0];
+    else {
+      var anyUrl = lines.filter(function (l) { return URL_RE.test(l); })[0];
+      if (anyUrl) textUrl = URL_RE.exec(anyUrl)[0];
+    }
+    textUrl = textUrl.replace(/[).,;:!?'"’>]+$/, '');
+    if (opts.url) {
+      fields.url = cell(opts.url, HIGH, 'The link you gave.');
+      if (textUrl && textUrl !== opts.url) notes.push('Link in the text: ' + textUrl);
+    } else if (textUrl) {
+      fields.url = cell(textUrl, urlEntry ? HIGH : MED);
+    }
+
+    if (notes.length) fields.notes = cell(notes.join('\n'), MED);
+    return fields;
+  }
+
+  /** Enough to call it a show: a date, or a name and one other fact. */
+  function isShowLike(f) {
+    if (f.startDate.value) return true;
+    return !!f.name.value && !!(f.city.value || f.applyBy.value || f.juryFee.value || f.boothFee.value);
+  }
+
+  /* A row the list reader produced that really looks like one show in a list. */
+  function strongListRow(r) {
+    var f = r.fields, n = f.name.value;
+    if (!n || n.length > 90 || /[.!?](?:\s|$)/.test(n.replace(/\b(?:St|Mt|Ft)\./g, 'St'))) return false;
+    if (!n.split(/\s+/).some(function (w) { return EVENT_NOUN.test(cleanWord(w)) || /^(?:arts?|crafts?)$/i.test(cleanWord(w)); })) return false;
+    return !!f.startDate.value && !!(f.city.value || f.applyBy.value || f.juryFee.value || f.boothFee.value);
+  }
+
+  /**
+   * Any pasted text -> { mode, rows, table?, mapping?, note? }.
+   * mode: 'table' (go to column mapping) | 'list' | 'single' | 'none'.
+   * opts: { url: the page's link, typed by the artist; now: a Date, for tests }
+   */
+  function readAny(text, opts) {
+    opts = opts || {};
+    var norm = normalizeText(text);
+    var nonEmpty = norm.split('\n').filter(function (l) { return l.trim(); });
+    if (!nonEmpty.length) return { mode: 'none', rows: [] };
+
+    var tabbed = nonEmpty.filter(function (l) { return l.indexOf('\t') !== -1; });
+    if (tabbed.length >= 2 && tabbed.length >= nonEmpty.length * 0.6) {
+      /* "Label<TAB>value" pairs are one show's details, not a table. */
+      var pairs = tabbed.map(function (l) { return l.split('\t').map(function (c) { return c.trim(); }).filter(Boolean); });
+      var asPairs = pairs.every(function (c) { return c.length === 2; }) &&
+        pairs.filter(function (c) { return plabelFor(c[0]) || labelFor(c[0]); }).length >= pairs.length * 0.6;
+      if (asPairs) norm = pairs.map(function (c) { return c[0] + ': ' + c[1]; }).join('\n');
+      else {
+        var z = parseZapp(text);
+        return { mode: z.table && z.mapping ? 'table' : (z.rows.length ? 'list' : 'none'),
+                 rows: z.rows, table: z.table, mapping: z.mapping };
+      }
+    } else {
+      var list = parseZapp(text);
+      if (list.rows.filter(strongListRow).length >= 2) {
+        return { mode: 'list', rows: list.rows,
+                 note: opts.url ? 'The link was not added: this paste holds several shows, and the link is one page.' : '' };
+      }
+    }
+
+    var fields = readOne(norm, opts);
+    if (!isShowLike(fields)) return { mode: 'none', rows: [] };
+    return { mode: 'single', rows: [makeCandidate(fields, norm, 'paste')] };
   }
 
   /* ======================================================================
@@ -953,7 +1533,8 @@ window.ASTImport = (function () {
     FIELDS: FIELDS, FIELD_KEYS: FIELD_KEYS,
     CONFIDENCE_LABEL: CONFIDENCE_LABEL,
     cell: cell, blankFields: blankFields, makeCandidate: makeCandidate,
-    parseZapp: parseZapp,
+    parseZapp: parseZapp, readAny: readAny, readOne: readOne,
+    dateMentions: dateMentions, placesIn: placesIn, eventPhrase: eventPhrase, isMonthWord: isMonthWord,
     parseDelimited: parseDelimited, guessMapping: guessMapping, rowsFromTable: rowsFromTable,
     SYNONYMS: SYNONYMS,
     scanDates: scanDates, scanRange: scanRange, coerceDate: coerceDate,

@@ -1,0 +1,38 @@
+{
+  "_about": "Hand-written texts (invented shows, invented places) and what the paste reader must read from each. Check a change against the raw .txt, never by reading the code. '' means not found. conf lists fields whose confidence is asserted. notesHas lists text the notes must contain.",
+  "today": "2026-11-23",
+  "zapp-list.txt": { "mode": "list", "rows": [
+    { "name": "Lantern Bay Fine Art Fair", "city": "Lantern Bay", "state": "FL", "startDate": "2027-01-16", "endDate": "2027-01-17", "applyBy": "2026-09-22", "juryFee": "45", "boothFee": "475" },
+    { "name": "Oakmere Spring Arts Festival", "city": "Oakmere", "state": "GA", "startDate": "2027-03-20", "endDate": "2027-03-21", "applyBy": "2026-12-01", "juryFee": "35", "boothFee": "395" },
+    { "name": "Tidewater Crafts Market", "city": "Tidewater", "state": "SC", "startDate": "2027-04-10", "endDate": "2027-04-11", "applyBy": "2027-01-12", "juryFee": "25", "boothFee": "300" }
+  ] },
+  "zapp-single.txt": { "mode": "single", "rows": [
+    { "name": "Gull Point Arts Festival", "city": "Gull Point", "state": "FL", "startDate": "2027-02-13", "endDate": "2027-02-15", "applyBy": "2026-09-08", "juryFee": "50", "boothFee": "895", "url": "",
+      "conf": { "startDate": "high", "applyBy": "high", "juryFee": "high", "boothFee": "high" } }
+  ] },
+  "show-website.txt": { "mode": "single", "rows": [
+    { "name": "The 22nd Annual Maple Hollow Fine Arts Festival", "city": "Maple Hollow", "state": "NC", "startDate": "2027-04-17", "endDate": "2027-04-18", "applyBy": "2027-01-10", "juryFee": "35", "boothFee": "375", "url": "https://example.org/maple-hollow/apply",
+      "conf": { "juryFee": "high", "boothFee": "high" }, "notesHas": ["2027-02-15"] }
+  ] },
+  "organiser-email.txt": { "mode": "single", "rows": [
+    { "name": "Sandpiper Bay Art Walk", "city": "Sandpiper Bay", "state": "FL", "startDate": "2027-03-13", "endDate": "2027-03-14", "applyBy": "2026-12-04", "juryFee": "25", "boothFee": "295", "url": "https://example.net/artwalk",
+      "notesHas": ["2027-01-08"] }
+  ] },
+  "prospectus-fees.txt": { "mode": "single", "rows": [
+    { "name": "Coral Hollow Winter Arts Festival", "city": "Coral Hollow", "state": "FL", "startDate": "2027-02-27", "endDate": "2027-03-01", "applyBy": "2026-10-31", "juryFee": "40", "boothFee": "425", "url": "",
+      "conf": { "boothFee": "low", "juryFee": "high" }, "notesHas": ["2026-11-30"], "noteHas": { "boothFee": "$800", "applyBy": "2026-09-30" } }
+  ] },
+  "platform-listing.txt": { "mode": "single", "rows": [
+    { "name": "Lakeside Pottery & Fine Craft Show", "city": "Willow Creek", "state": "GA", "startDate": "2027-05-08", "endDate": "2027-05-09", "applyBy": "2027-01-15", "juryFee": "30", "boothFee": "350", "url": "https://example.com/lakeside-show",
+      "conf": { "name": "high", "startDate": "high", "endDate": "high", "applyBy": "high", "juryFee": "high", "boothFee": "high" }, "notesHas": ["2027-02-12"] }
+  ] },
+  "social-post.txt": { "mode": "single", "rows": [
+    { "name": "Harbor Days Art Fair", "city": "Port Lindell", "state": "ME", "startDate": "2027-05-15", "endDate": "2027-05-16", "applyBy": "2027-02-01", "juryFee": "25", "boothFee": "300", "url": "",
+      "conf": { "startDate": "low", "endDate": "low", "applyBy": "low" } }
+  ] },
+  "not-a-show.txt": { "mode": "none", "rows": [] },
+  "table-paste.txt": { "mode": "table", "rows": [
+    { "name": "Willowbrook Art Fair", "city": "Willowbrook", "state": "IL", "startDate": "2027-06-05", "endDate": "2027-06-06", "applyBy": "2027-02-01", "juryFee": "35", "boothFee": "450" },
+    { "name": "Prairie Lights Festival", "city": "Ames", "state": "IA", "startDate": "2027-07-10", "endDate": "2027-07-11", "applyBy": "2027-03-01", "juryFee": "30", "boothFee": "375" }
+  ] }
+}
