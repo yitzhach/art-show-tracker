@@ -17,65 +17,36 @@ at a checkpoint or at something on "Still Isaac's".
 
 | Phase | What | State |
 |---|---|---|
-| A | Safe for anyone, no account needed | **in progress** — A1, A3, A4, A5 and most of A6 shipped. **Checkpoint 1 is done (2026-11-14).** A2 is half-built on a branch: see "Pick up here"; waiting on checkpoint 1 for anything that changes stored data |
-| B | Add a show from anywhere | not started |
+| A | Safe for anyone, no account needed | **done 2026-11-23** — A1 to A5 shipped, A6 mostly (two small items in "Pick up here"). Checkpoint 1 done 2026-11-14 |
+| B | Add a show from anywhere | **next** — not started |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
 | F | Paid tier | not started |
-| W | Show watch and the feed: a daily check of each show's own website, and "what's new" inside the app | **proposed 2026-11-17, not approved** — `docs/watch-and-feed-plan.md`. Waiting on Isaac's yes to its decisions W-1 … W-6. Does not change what is next: A2, then B |
+| W | Show watch and the feed: a daily check of each show's own website, and "what's new" inside the app | **proposed 2026-11-17, not approved** — `docs/watch-and-feed-plan.md`. Waiting on Isaac's yes to its decisions W-1 … W-6. Does not change what is next: B |
 
 Update the State column, and the "Done so far" list under each phase, in the
 same pull request as the work.
 
 ---
 
-## Pick up here (written 2026-11-14)
+## Pick up here (written 2026-11-23)
 
-**Checkpoint 1 is done.** Isaac made a full backup of his real season on
-2026-11-14 and sent the file. Changes to how saved data is stored may now
-ship, each with a migration test against old data.
+**Phase A is done.** A2 shipped on 2026-11-23: a new browser starts empty,
+with an optional sample season of six invented shows. Gate A holds, with
+one gap: the branch preview is not audited before landing (below).
 
-What his backup showed, worth knowing before touching his data: he is signed
-in to the studio (shows and sales come from the account); 16 shows, 1 test
-sale; no expenses, applications, events, contacts or debriefs yet; his share
-settings already hold his name, so removing the default did not blank his
-header.
+What the owner's backup (2026-11-14) showed, worth knowing before touching
+his data: he is signed in to the studio (shows and sales come from the
+account); 16 shows, 1 test sale; no expenses, applications, events, contacts
+or debriefs yet; his share settings hold his name.
+`build/first-run-tests.cjs` holds a fixture shaped like that season
+(invented names) and checks it comes through every page byte-for-byte.
 
-**Next: finish A2 (the empty first run).** It is half-built and NOT merged.
-The work is one commit on the branch `claude/quirky-brown-x607vs`, titled
-"WIP A2". Fetch that branch by name and cherry-pick or redo it; do not merge
-it as it stands. What it already does:
-
-- `core.js`: the seeded season is gone. A new device starts empty. `SAMPLE`
-  is six invented shows (`source: 'sample'`, ids `sample-…`), with
-  `LocalStore.hasSample()`, `loadSample()` and `removeSample()`. A device
-  still holding the untouched old seed (`pristineSeed: true`) is cleared to
-  empty when read; a device with any real write is not touched.
-- `index.html`: the empty ledger offers three starts (browse the shows, add
-  one, load the sample season); sample rows carry a "NOT REAL" tag; a
-  `#sampleNote` line with "Remove the sample shows".
-
-What is left, in order:
-
-1. `#sampleNote` is never shown: set `hidden = !LocalStore.hasSample()` in
-   the ledger's `render()`.
-2. Run `node build/run-suites.cjs`. Suites that cleared storage and then
-   relied on the nine seeded shows will fail. Fix each by giving the test
-   its own shows (or `LocalStore.loadSample()`), never by bringing a seed
-   back.
-3. Sample shows must not leave the device or pose as real: skip
-   `source: 'sample'` in the studio's "Import my existing data"
-   (`studio-store.js`, near its `pristineSeed` check), in the Supabase first
-   push (`store-supabase.js`), and in the share card, caption and embed.
-   The sample is already not offered while signed in.
-4. Tests, in a new `build/first-run-tests.cjs`: a fresh browser is empty on
-   every page; a stored database with `pristineSeed: true` comes up empty; a
-   stored database shaped like Isaac's (use the shapes in his backup, with
-   invented names) is byte-for-byte untouched; load and remove the sample;
-   the sample is not offered when a sync backend is active.
-5. `python3 build/build_fit_data.py` to stamp assets, all suites, the page
-   audit, then ship. That completes Gate A.
+**Next: Phase B, starting with B1 (paste anything).** Read Phase B below,
+then `tracker/import.js` (the review table B1 feeds) and
+`build/import_show_research.py` (the fee parser: its audit rule applies to
+any new reader). Phase W stays parked until the owner answers W-1 … W-6.
 
 Small things still open from Phase A, none blocking:
 
@@ -87,8 +58,9 @@ Small things still open from Phase A, none blocking:
   straight after. Isaac can add the preview host to that environment's
   allowed domains to close this.
 - The CI runner pin (`ubuntu-24.04`) needs carrying into `yitzhach/site-qa`.
-
-**Then Phase B.**
+- The sample season's dates are fixed (January to March 2027). Once they
+  pass, the sample still loads but reads as a past season; move them forward
+  then, or compute them from today.
 
 ---
 
@@ -206,8 +178,7 @@ Done so far:
   share card, caption and embed. The artist's name is the share panel's
   "Name on the card" (one setting, already in the backup); empty means no
   name shown. The embed now defaults to this app's own `embed.html`.
-  `build/identity-tests.cjs`. The seeded season itself is A2 and has not
-  shipped: it waits on checkpoint 1.
+  `build/identity-tests.cjs`. The seeded season itself went with A2.
 - **A4, 2026-11-14.** Account & sync opens on "Where your season is saved",
   in words, with Back up and Restore, and is reachable from the menu on every
   page. The Supabase form is under "Advanced" and opens by itself only on a
@@ -223,6 +194,21 @@ Done so far:
   docs say `_headers` is not applied to responses a Worker builds, which is
   why "/" is done by hand. The README was done with the plan. Still open: the
   version stamp's `commit` field.
+- **A2, 2026-11-23.** A new device starts empty; the ledger offers "Browse
+  the shows", "Add a show yourself" and "Load a sample season" (six invented
+  shows in invented towns, each named "Sample: …", tagged NOT REAL, removed
+  in one tap). A device still holding the untouched old seed is cleared to
+  empty when read; one real write anywhere keeps everything.
+  `build/first-run-tests.cjs`. Decisions taken while building it:
+  - Sample shows never leave the device or pose as real: skipped by the
+    studio's "Import my existing data", the Supabase push, and every public
+    list (share card, caption, shows.json, embed).
+  - Sample shows never become catalogue records, so they cannot be hearted
+    and leave nothing in All shows once removed. Their drawer says there is
+    no catalogue record, as for any hand-typed show.
+  - The sample is not offered, and its note is hidden, while a sync backend
+    holds the season: the account's season is the artist's, and sample rows
+    in local storage would not be what the page lists.
 
 ---
 

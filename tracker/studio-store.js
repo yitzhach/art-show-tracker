@@ -513,7 +513,9 @@ window.ASTStudio = (function () {
     if (!db) return { shows: [], sales: [], seed: false };
     if (db.pristineSeed) return { shows: [], sales: [], seed: true };
     var live = function (r) { return !r.deletedAt; };
-    return { shows: db.shows.filter(live), sales: db.sales.filter(live), seed: false };
+    // Sample shows are invented and stay on this device; never send them up.
+    var real = function (r) { return live(r) && r.source !== 'sample'; };
+    return { shows: db.shows.filter(real), sales: db.sales.filter(live), seed: false };
   }
 
   function importExisting(onProgress) {

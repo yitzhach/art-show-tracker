@@ -103,7 +103,7 @@ Cmd-click, middle-click and a screenreader all behave.
   intel drawer with everything below.
 - **`tracker/calendar.html`** — the calendar. Year, month and an iOS-style day
   view over four switchable layers: your ledger, your **hearted** shortlist,
-  the whole catalogue (off by default — 237 shows over your nine is a wall,
+  the whole catalogue (off by default — 237 shows over your own season is a wall,
   not a calendar) and your own events. Multi-day shows draw as one bar, not a
   chip per day; two shows you are committed to on one weekend raise a clash
   banner. Clicking a day drops into it, an hour there opens an event already

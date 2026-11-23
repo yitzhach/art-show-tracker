@@ -246,6 +246,8 @@ window.ASTSupabase = (function () {
           var toSaveLocally = [];
 
           mine.forEach(function (l) {
+            // Sample shows are invented and stay on this device: never pushed.
+            if (l.source === 'sample') return;
             var r = byId[l.id];
             if (!r) { toPush.push(l); return; }          // never synced, or new here
             var win = newer(l, r);

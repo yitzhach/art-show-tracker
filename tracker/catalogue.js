@@ -344,7 +344,7 @@ window.ASTCatalogue = (function () {
     var relink = [];
     var changed = false;
     /* Before minting a record, look for the shipped one: a show typed in by
-       name (or the ledger's sample season) is usually already catalogued.
+       name is usually already catalogued.
        Exact name only, and only when exactly one record answers to it and
        no other ledger show already holds it — a guessed link is worse than
        a duplicate row. */
@@ -364,6 +364,9 @@ window.ASTCatalogue = (function () {
     (shows || []).forEach(function (sh) { if (sh && sh.catalogueId) held[sh.catalogueId] = true; });
     (shows || []).forEach(function (sh) {
       if (!sh || sh.deletedAt || !sh.name) return;
+      /* Sample shows are invented: they never become catalogue records, so
+         removing the sample leaves nothing behind in All shows. */
+      if (sh.source === 'sample') return;
       if (sh.catalogueId && known[sh.catalogueId]) return;
       var match = byName[norm(sh.name)];
       var id = (!sh.catalogueId && match && match !== '!' && !held[match] &&

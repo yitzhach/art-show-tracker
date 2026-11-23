@@ -60,6 +60,8 @@ window.ASTShare = (function () {
     var count = opts.count == null ? 5 : Math.max(1, opts.count);
     var rows = (shows || []).filter(function (s) {
       if (!s.startDate) return false;
+      // Sample shows are invented; a public list must never pose them as real.
+      if (s.source === 'sample') return false;
       if (!opts.includeAlternates && s.isAlternate) return false;
       if (mode.statuses.indexOf(s.status) === -1) return false;
       return (s.endDate || s.startDate) >= iso;
