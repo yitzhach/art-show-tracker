@@ -1379,6 +1379,9 @@ window.ASTImport = (function () {
       isAlternate: existing ? existing.isAlternate : /\b(?:alt|alternate|backup)\b/i.test(f.notes.value),
       notes: f.notes.value || base.notes || '',
       url: f.url.value,
+      /* Pasting a show's own page is looking at it: that counts as checked
+         today. A spreadsheet or a results list is not the show's page. */
+      checkedAt: cand.source === 'paste' ? A.todayISO() : (base.checkedAt || ''),
       source: cand.source
     });
   }

@@ -98,6 +98,11 @@ window.AST = (function () {
       hidden: !!input.hidden,
       notes: input.notes || '',
       url: input.url || '',
+      /* When the artist last looked at the show's own page and found these
+         details right (plan B4). '' is never. A show copied from the
+         catalogue carries the catalogue's capture dates in the drawer, not
+         this: this is the artist's own check. */
+      checkedAt: dateOrEmpty(input.checkedAt),
       source: ['manual','zapp_paste','paste','csv','catalogue','sample'].indexOf(input.source) !== -1 ? input.source : 'manual',
       /* Which catalogue record this came from, so All shows can tell you it
          is already in the ledger without matching on name. */
@@ -1269,6 +1274,11 @@ window.AST = (function () {
     return (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) ? dt : null;
   }
   function today() { var t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+  /** Today as 'YYYY-MM-DD', in the artist's own time zone. */
+  function todayISO() {
+    var t = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+  }
   function daysUntil(iso) {
     var d = parseISO(iso);
     if (!d) return null;
@@ -1591,7 +1601,7 @@ window.AST = (function () {
     SAMPLE: SAMPLE, Store: Store, LocalStore: LocalStore,
     useStore: useStore, currentStore: currentStore, Settings: Settings,
     setNotifier: function (fn) { notify = fn; },
-    parseISO: parseISO, today: today, daysUntil: daysUntil,
+    parseISO: parseISO, today: today, todayISO: todayISO, daysUntil: daysUntil,
     fmtDay: fmtDay, fmtRange: fmtRange, fmtCountdown: fmtCountdown,
     esc: esc, place: place, byDate: byDate, hasCoords: hasCoords, FAR: FAR,
     starsSVG: starsSVG, ratingText: ratingText,

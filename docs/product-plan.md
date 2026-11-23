@@ -18,7 +18,7 @@ at a checkpoint or at something on "Still Isaac's".
 | Phase | What | State |
 |---|---|---|
 | A | Safe for anyone, no account needed | **done 2026-11-23** — A1 to A5 shipped, A6 mostly (two small items in "Pick up here"). Checkpoint 1 done 2026-11-14 |
-| B | Add a show from anywhere | **in progress** — B1, B2, B3 shipped 2026-11-23; next B4 |
+| B | Add a show from anywhere | **in progress** — B1 to B4 shipped 2026-11-23; next B5 (design only) |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
@@ -43,7 +43,7 @@ or debriefs yet; his share settings hold his name.
 `build/first-run-tests.cjs` holds a fixture shaped like that season
 (invented names) and checks it comes through every page byte-for-byte.
 
-**Next: B4 (freshness), then B5.** B1, B2 and B3 shipped: see
+**Next: B5 (a design note, nothing built), which closes Phase B.** B1 to B4 shipped: see
 Phase B's "Done so far". The paste reader's contract is the hand-written
 texts in `build/fixtures/paste/` and `expected.json` beside them; a change
 to the reader is checked against those raw texts (`build/paste-tests.cjs`).
@@ -286,6 +286,26 @@ Done so far:
   link that is not http(s) is dropped. The paste tab tells iPhone users
   plainly that web apps cannot receive shares there. Tests in
   `build/paste-tests.cjs`.
+- **B4, 2026-11-23.** Freshness. Decisions taken:
+  - Every sourced fact in the drawer says "as of <date>": its own `checked`
+    date, else the date of the export it came from (`catalogue-source.json`
+    `importedAt`), else the date of the research pass (`show-research.json`
+    `generatedAt`). A sourced fact with none says "date not recorded"; an
+    estimate says nothing, because it was never captured. Never the build
+    date: `catalogue.json`'s `importedAt` is stamped by the build.
+    `stamp_captured()` in `build/build_fit_data.py`.
+  - A ledger show has `checkedAt`: the artist's own word that the details
+    match the show's page. Set by "I checked it today" (edit pane, and the
+    deadlines panel), and by importing a pasted show page. Not set by a CSV,
+    a results list or the catalogue: none of those is the show's own page.
+  - Within 14 days of a deadline, a show not yet applied to whose details
+    were never checked, or checked over 30 days ago, gets a line in Next
+    deadlines: "Check the show's own page before you apply", with its link.
+  - No schema bump: `makeShow` adds `checkedAt: ''` in memory, so a saved
+    season is not rewritten by loading it (tested byte for byte). The studio
+    carries it in `meta.checkedAt`. Supabase has no such column, so on that
+    backend a newer remote copy can blank it; Supabase is being retired (P-5).
+  - Tests: `build/freshness-tests.cjs`.
 
 ---
 

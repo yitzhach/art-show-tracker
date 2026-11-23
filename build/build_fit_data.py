@@ -335,6 +335,7 @@ def main():
             rec["provenance"].pop("notifyDate", None)
 
     reject_free_booths(out)
+    stamp_captured(out, load(CATALOGUE_SRC).get("importedAt"), research.get("generatedAt"))
     report_hygiene(cat_repairs + rec_repairs, cat_fatals + rec_fatals, expired)
     write_version(stamp_assets(), len(out))
 
@@ -650,6 +651,41 @@ def stamp_assets():
 
     print("  asset version %s stamped into %s" % (tag, ", ".join(touched) or "nothing"))
     return tag
+
+
+def stamp_captured(records, export_date, research_date):
+    """Give every sourced fact the date it was captured (plan B4).
+
+    A source entry's own `checked` date wins. Failing that, a fact that came
+    from the ZAPPlication export was captured when the export was made, and
+    one from the event-page research pass when that pass ran. Anything else
+    sourced gets `captured: null`, which the drawer renders as "date not
+    recorded" rather than inventing one. Estimates and the test show get no
+    `captured` at all: an estimate was never captured from anywhere.
+
+    Never the build date: catalogue.json's `importedAt` is stamped when the
+    build runs, and showing that as a capture date would make every fact
+    look fresh.
+    """
+    dated = 0
+    for rec in records:
+        for entry in (rec.get("provenance") or {}).values():
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("status") in ("estimated", "editorial", "fixture", None):
+                continue
+            basis = entry.get("basis") or ""
+            if entry.get("checked"):
+                when = entry["checked"]
+            elif basis == "ZAPPlication export":
+                when = export_date
+            elif basis.startswith("ZAPPlication event page research pass"):
+                when = research_date
+            else:
+                when = None
+            entry["captured"] = when
+            dated += 1 if when else 0
+    print("  capture dates: %d sourced facts dated" % dated)
 
 
 def reject_free_booths(records):

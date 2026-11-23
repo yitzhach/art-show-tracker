@@ -31,11 +31,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
       referrerpolicy="no-referrer">
-<link rel="stylesheet" href="app.css?v=c7480df1">
+<link rel="stylesheet" href="app.css?v=58281a9b">
 <!-- The ledger shows the same fit/intel drawer the catalogue does, so it needs
      the same styles. Scoped to .idr/.fitchip/.prov and its own tokens; it adds
      to app.css rather than competing with it. -->
-<link rel="stylesheet" href="intel.css?v=c7480df1">
+<link rel="stylesheet" href="intel.css?v=58281a9b">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -363,6 +363,13 @@
       <input class="control" id="f_url" name="url" inputmode="url" placeholder="https://" autocomplete="off">
       <a class="hint" id="f_urlOpen" target="_blank" rel="noopener noreferrer" hidden>Open the show's page in a new tab ↗</a>
       <div class="err" id="e_url" hidden></div>
+    </div>
+
+    <div class="form-row">
+      <span class="label">Checked against the show's page</span>
+      <p class="hint" id="f_checkedText" style="margin:0 0 6px;"></p>
+      <button type="button" class="btn-mini" id="f_checkedNow">I checked it today</button>
+      <input type="hidden" id="f_checkedAt">
     </div>
 
     <div class="form-row">
@@ -745,33 +752,33 @@
      sandbox and an unverified hash would break the map outright. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
         referrerpolicy="no-referrer"></script>
-<script src="core.js?v=c7480df1"></script>
-<script src="pwa.js?v=c7480df1"></script>
-<script src="studio-sdk.js?v=c7480df1"></script>
-<script src="studio-store.js?v=c7480df1"></script>
-<script src="studio-ui.js?v=c7480df1"></script>
-<script src="studio-assistant.js?v=c7480df1"></script>
-<script src="nav.js?v=c7480df1"></script>
-<script src="version.js?v=c7480df1"></script>
-<script src="map.js?v=c7480df1"></script>
-<script src="route.js?v=c7480df1"></script>
+<script src="core.js?v=58281a9b"></script>
+<script src="pwa.js?v=58281a9b"></script>
+<script src="studio-sdk.js?v=58281a9b"></script>
+<script src="studio-store.js?v=58281a9b"></script>
+<script src="studio-ui.js?v=58281a9b"></script>
+<script src="studio-assistant.js?v=58281a9b"></script>
+<script src="nav.js?v=58281a9b"></script>
+<script src="version.js?v=58281a9b"></script>
+<script src="map.js?v=58281a9b"></script>
+<script src="route.js?v=58281a9b"></script>
 <!-- The fit/intel layer, so a show in the ledger opens the same breakdown
      it does in the catalogue. weather.js and salestax.js are optional to
      intel-ui.js, but without them the drawer silently loses two panels,
      which is worse than carrying two small files. -->
-<script src="fit.js?v=c7480df1"></script>
-<script src="pipeline.js?v=c7480df1"></script>
-<script src="intel.js?v=c7480df1"></script>
-<script src="members.js?v=c7480df1"></script>
-<script src="weather.js?v=c7480df1"></script>
-<script src="salestax.js?v=c7480df1"></script>
-<script src="intel-ui.js?v=c7480df1"></script>
-<script src="store-supabase.js?v=c7480df1"></script>
-<script src="import.js?v=c7480df1"></script>
-<script src="import-ui.js?v=c7480df1"></script>
-<script src="share.js?v=c7480df1"></script>
-<script src="share-ui.js?v=c7480df1"></script>
-<script src="backup.js?v=c7480df1"></script>
+<script src="fit.js?v=58281a9b"></script>
+<script src="pipeline.js?v=58281a9b"></script>
+<script src="intel.js?v=58281a9b"></script>
+<script src="members.js?v=58281a9b"></script>
+<script src="weather.js?v=58281a9b"></script>
+<script src="salestax.js?v=58281a9b"></script>
+<script src="intel-ui.js?v=58281a9b"></script>
+<script src="store-supabase.js?v=58281a9b"></script>
+<script src="import.js?v=58281a9b"></script>
+<script src="import-ui.js?v=58281a9b"></script>
+<script src="share.js?v=58281a9b"></script>
+<script src="share-ui.js?v=58281a9b"></script>
+<script src="backup.js?v=58281a9b"></script>
 <script type="module">
 /* ==========================================================================
    1-5. SHARED CORE
@@ -978,6 +985,21 @@ function renderList() {
     (nHidden ? ' · ' + nHidden + ' hidden from the route' : '');
 }
 
+/* Near a deadline, a date nobody has checked lately is not to be trusted:
+   ask the artist to look at the show's own page (plan B4). */
+const CHECK_NEAR_DAYS = 14, CHECK_STALE_DAYS = 30;
+function needsCheck(s) {
+  if (!s.applyBy || daysUntil(s.applyBy) < 0 || daysUntil(s.applyBy) > CHECK_NEAR_DAYS) return false;
+  if (s.status === 'applied' || s.status === 'accepted' || s.status === 'declined' || s.status === 'not_applying') return false;
+  return !s.checkedAt || -daysUntil(s.checkedAt) > CHECK_STALE_DAYS;
+}
+function checkLine(s) {
+  return '<div class="d-check">Check the show\'s own page before you apply: ' +
+    (s.checkedAt ? 'these details were last checked ' + esc(fmtDay(s.checkedAt)) : 'nobody has checked these details against it') + '. ' +
+    (/^https?:\/\//i.test(s.url || '') ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">Open its page ↗</a> · ' : '') +
+    '<button type="button" class="btn-link" data-checked="' + esc(s.id) + '">I checked it today</button></div>';
+}
+
 function renderDeadlines() {
   const upcoming = state.shows
     .filter(s => s.applyBy && daysUntil(s.applyBy) >= 0)
@@ -992,7 +1014,7 @@ function renderDeadlines() {
       (s.status === 'applied' || s.status === 'accepted'
         ? ' <span class="hint" style="margin:0;">· ' + esc(STATUS_LABEL[s.status]) + '</span>' : '') +
       '</span><span class="d-when ' + cls + '">' + esc(fmtDay(s.applyBy)) + ' · ' +
-      esc(fmtCountdown(n)) + '</span></div>';
+      esc(fmtCountdown(n)) + '</span>' + (needsCheck(s) ? checkLine(s) : '') + '</div>';
   }).join('');
 }
 
@@ -1195,6 +1217,8 @@ function openDrawer(show) {
   $('#f_lng').value = s.lng === null ? '' : s.lng;
   $('#f_url').value = s.url;
   paintUrlOpen();
+  $('#f_checkedAt').value = s.checkedAt || '';
+  paintChecked();
   $('#f_notes').value = s.notes;
   setRating(s.rating, { silent: true });
 
@@ -1282,6 +1306,7 @@ function collect() {
     isAlternate: $('#f_isAlternate').checked,
     notes: $('#f_notes').value,
     url,
+    checkedAt: $('#f_checkedAt').value,
     source: existing ? existing.source : 'manual'
   });
 }
@@ -1968,6 +1993,34 @@ function paintUrlOpen() {
   if (ok) a.setAttribute('href', v); else a.removeAttribute('href');
 }
 $('#f_url').addEventListener('input', paintUrlOpen);
+
+/* Last checked (plan B4): the artist's own word that the details match the
+   show's page. Saved with the rest of the edit pane. */
+function paintChecked() {
+  const v = $('#f_checkedAt').value;
+  const ago = v ? -daysUntil(v) : null;
+  $('#f_checkedText').textContent = v
+    ? 'Last checked ' + fmtDay(v) + (ago === 0 ? ' (today).' : ago === 1 ? ' (yesterday).' : ' (' + ago + ' days ago).')
+    : 'Not checked against the show\'s page yet.';
+  $('#f_checkedNow').disabled = v === window.AST.todayISO();
+}
+$('#deadlinePanel').addEventListener('click', async e => {
+  const b = e.target.closest('[data-checked]');
+  if (!b) return;
+  const show = state.shows.find(s => s.id === b.dataset.checked);
+  if (!show) return;
+  const before = { ...show };
+  await Store.upsert({ ...show, checkedAt: window.AST.todayISO(), updatedAt: new Date().toISOString() });
+  await refresh();
+  toast('"' + (show.name || 'Show') + '" marked as checked today.', 'Undo', async () => {
+    await Store.upsert({ ...before, updatedAt: new Date().toISOString() });
+    await refresh();
+  });
+});
+$('#f_checkedNow').addEventListener('click', () => {
+  $('#f_checkedAt').value = window.AST.todayISO();
+  paintChecked();
+});
 
 /* Phase 5: share and export. The panel reads the same shows the ledger is
    showing (so whichever Store is live) and writes nothing but its own

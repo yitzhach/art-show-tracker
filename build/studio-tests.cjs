@@ -42,7 +42,7 @@ function check(name, ok, detail) {
       id: '3f2c1a8e-1111-4c4c-9c9c-123456789abc', name: 'Coconut Grove Arts Festival', city: 'Coconut Grove, Miami',
       state: 'FL', lat: 25.7282, lng: -80.2434, startDate: '2027-02-13', endDate: '2027-02-15', applyBy: '2026-09-08',
       status: 'waitlist', rating: 8, juryFee: 45, boothFee: 650.5, grossSales: 4210.25, routeNumber: '7',
-      isAlternate: true, hidden: true, notes: 'Corner if possible', url: 'https://example.org', source: 'catalogue',
+      isAlternate: true, hidden: true, notes: 'Corner if possible', url: 'https://example.org', checkedAt: '2026-11-20', source: 'catalogue',
       catalogueId: 'zapp-1', createdAt: '2026-01-02T03:04:05.000Z'
     });
     const pid = await M.platformId(full.id);

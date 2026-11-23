@@ -99,6 +99,7 @@ window.ASTStudio = (function () {
     meta.isAlternate = !!show.isAlternate;
     meta.hidden = !!show.hidden;
     meta.url = blankToNull(show.url);
+    meta.checkedAt = blankToNull(show.checkedAt);
     meta.source = show.source;
     meta.catalogueId = blankToNull(show.catalogueId);
     meta.trackerCreatedAt = show.createdAt || null;
@@ -130,6 +131,7 @@ window.ASTStudio = (function () {
       hidden: !!m.hidden,
       notes: textBack(m, 'notes', rec.notes),
       url: nullToBlank(m.url),
+      checkedAt: nullToBlank(m.checkedAt),
       source: m.source,
       catalogueId: nullToBlank(m.catalogueId),
       deletedAt: rec.deletedAt || null,
