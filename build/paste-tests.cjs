@@ -218,6 +218,46 @@ check('nothing is invented from an empty paste', I.readAny('   \n  ').mode === '
   check('text with no show in it says so and stays on the paste box', await p.isVisible('#impStep1') &&
         /looked like a show/.test(await p.textContent('#impParseNote')));
 
+  /* ---- B3: a page shared to the installed app ------------------------------ */
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'tracker', 'manifest.webmanifest'), 'utf8'));
+  const st = manifest.share_target || {};
+  check('the installed app offers itself as a share target (GET, to the ledger)',
+        st.method === 'GET' && st.action === 'index.html' && st.params &&
+        st.params.title === 'share_title' && st.params.text === 'share_text' && st.params.url === 'share_url', JSON.stringify(st));
+
+  await p.goto(ROOT + 'index.html', { waitUntil: 'load' });
+  await p.evaluate(() => localStorage.clear());
+  await p.goto(ROOT + 'index.html?share_title=' + encodeURIComponent('Harbor Days Art Fair') +
+               '&share_text=' + encodeURIComponent('https://example.org/harbor-days') + '#x', { waitUntil: 'load' });
+  await p.waitForTimeout(500);
+  const shareA = await p.evaluate(() => ({
+    open: !document.querySelector('#importModal').hidden,
+    text: document.querySelector('#impPasteText').value,
+    link: document.querySelector('#impPasteLink').value,
+    note: document.querySelector('#impParseNote').textContent,
+    address: location.search + location.hash,
+    saved: JSON.parse(localStorage.getItem('artShowTracker.db') || '{"shows":[]}').shows.length
+  }));
+  check('a shared page opens the paste box with its title and link', shareA.open && shareA.text === 'Harbor Days Art Fair' &&
+        shareA.link === 'https://example.org/harbor-days', JSON.stringify(shareA));
+  check('it says plainly that only the title and link came, and how to get the text', /not its text/.test(shareA.note), shareA.note);
+  check('the share is taken off the address, so a reload does not share it again', shareA.address === '#x', shareA.address);
+  check('nothing is read or saved from a share until the artist asks', shareA.saved === 0, String(shareA.saved));
+
+  const post = fs.readFileSync(path.join(DIR, 'social-post.txt'), 'utf8');
+  await p.goto(ROOT + 'index.html?share_text=' + encodeURIComponent(post) + '&share_url=' + encodeURIComponent('javascript:alert(1)'),
+               { waitUntil: 'load' });
+  await p.waitForTimeout(500);
+  const shareB = await p.evaluate(() => ({ link: document.querySelector('#impPasteLink').value,
+    note: document.querySelector('#impParseNote').textContent }));
+  check('a shared link that is not a web address is dropped', shareB.link === '', shareB.link);
+  check('shared text is offered for checking, not read on arrival', /Check the text/.test(shareB.note) &&
+        await p.isVisible('#impStep1'), shareB.note);
+  await p.click('#impNext');
+  await p.waitForTimeout(300);
+  check('and reads like a paste once asked', await p.evaluate(() =>
+    document.querySelector('#impReviewHost [data-field="name"]').value === 'Harbor Days Art Fair'));
+
   check('no page errors along the way', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close();
   finish();

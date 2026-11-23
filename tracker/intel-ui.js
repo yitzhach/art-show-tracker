@@ -62,8 +62,20 @@ window.ASTIntelUI = (function () {
        carries it, and it says so in capitals so it cannot be skimmed past. */
     fixture:      { text:'test data',    title:'Invented. This is the practice show — nothing on this record describes a real event.' }
   };
+  /* When a sourced fact was captured (plan B4), in words beside its chip.
+     null means the source is known but its date was never recorded; no key
+     at all is an estimate, which was never captured from anywhere. */
+  function asOf(entry) {
+    if (!entry || !('captured' in entry)) return '';
+    return entry.captured
+      ? ' <span class="as-of">as of ' + esc(A.fmtDay(entry.captured)) + '</span>'
+      : ' <span class="as-of">date not recorded</span>';
+  }
   function provChip(entry) {
     if (!entry) return '';
+    return provChipOnly(entry) + asOf(entry);
+  }
+  function provChipOnly(entry) {
     var meta = PROV_LABEL[entry.status] || PROV_LABEL.editorial;
     var tip = meta.title + (entry.basis ? '\n\n' + entry.basis : '') +
               (entry.checked ? '\n\nChecked ' + entry.checked : '');

@@ -161,6 +161,7 @@ node build/backup-tests.cjs                 # full backup: round trip, refusals,
 node build/identity-tests.cjs               # no default person; Account & sync for a newcomer
 node build/first-run-tests.cjs              # empty first run, sample season, old data untouched
 node build/paste-tests.cjs                  # the paste reader vs build/fixtures/paste, then the Import window
+node build/freshness-tests.cjs              # capture dates on facts, last checked, the near-deadline prompt
 node build/run-suites.cjs                   # all of the above + pwa + studio
 npm ci --prefix qa && npm --prefix qa test  # page audit + qa specs → qa/results/audit.json
 qa/browse open <url>                        # read and drive a page as text (Playwright CLI)

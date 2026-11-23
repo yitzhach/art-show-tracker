@@ -298,6 +298,9 @@ textarea.control { min-height:110px; resize:vertical; line-height:1.6; }
   padding:11px 0; border-bottom:1px solid var(--line);
 }
 .deadline-row .d-name { font-size:13px; }
+.deadline-row { flex-wrap:wrap; }
+.deadline-row .d-check { flex-basis:100%; font-size:12px; line-height:1.5; color:var(--ink); }
+.btn-link { padding:0; border:0; background:none; color:var(--accent); font:inherit; text-decoration:underline; cursor:pointer; min-height:0; }
 .deadline-row .d-when { font-size:11px; letter-spacing:.08em; text-align:right; white-space:nowrap; }
 .d-critical { color:var(--danger); font-weight:600; }
 .d-soon { color:var(--warn); font-weight:600; }
