@@ -64,10 +64,11 @@ function check(name, pass, detail) {
   check('page loads with no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   // ---- 2. catalogue size -------------------------------------------------
-  const count = await page.textContent('#catCount');
+  const count = await page.textContent('#resCount');
   /* 236 real shows plus the practice show, which is deliberately in the list
      rather than hidden behind a flag: an artist has to be able to find it. */
-  check('catalogue shows 237', /237/.test(count || ''), 'got: ' + count);
+  check('catalogue shows 237, one count', /^Showing \d+ of 237 shows/.test(count || '') &&
+    !(await page.$('#catCount')), 'got: ' + count);
 
   // ---- 3. profile bar present -------------------------------------------
   const discOpts = await page.$$eval('#pfDiscipline option', els => els.map(e => e.value));
