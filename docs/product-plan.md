@@ -18,7 +18,7 @@ at a checkpoint or at something on "Still Isaac's".
 | Phase | What | State |
 |---|---|---|
 | A | Safe for anyone, no account needed | **done 2026-11-23** — A1 to A5 shipped, A6 mostly (two small items in "Pick up here"). Checkpoint 1 done 2026-11-14 |
-| B | Add a show from anywhere | **next** — not started |
+| B | Add a show from anywhere | **in progress** — B1 and B2 shipped 2026-11-23; next B3 |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
@@ -43,10 +43,11 @@ or debriefs yet; his share settings hold his name.
 `build/first-run-tests.cjs` holds a fixture shaped like that season
 (invented names) and checks it comes through every page byte-for-byte.
 
-**Next: Phase B, starting with B1 (paste anything).** Read Phase B below,
-then `tracker/import.js` (the review table B1 feeds) and
-`build/import_show_research.py` (the fee parser: its audit rule applies to
-any new reader). Phase W stays parked until the owner answers W-1 … W-6.
+**Next: B3 (from a phone), then B4, then B5.** B1 and B2 shipped: see
+Phase B's "Done so far". The paste reader's contract is the hand-written
+texts in `build/fixtures/paste/` and `expected.json` beside them; a change
+to the reader is checked against those raw texts (`build/paste-tests.cjs`).
+Phase W stays parked until the owner answers W-1 … W-6.
 
 Small things still open from Phase A, none blocking:
 
@@ -247,7 +248,35 @@ fields or to "not found". A wrong number never appears without the artist
 having seen it in review. The fee reader's audit rule applies: check the
 output against the raw text, not by reading the code.
 
-Done so far: —
+Done so far:
+
+- **B1 and B2, 2026-11-23.** The Import window's first tab is now "Paste a
+  page or email", and the empty ledger offers it too. `readAny()` in
+  `tracker/import.js` decides what it was given: a copied table (column
+  mapping, as before), a list of several shows (the ZAPP reader, unchanged),
+  or one show's page, prospectus, listing, post or email (the new
+  `readOne()`). An optional "Link to that page" is kept as the show's link;
+  the edit pane opens it in a new tab and nothing fetches it. Fixtures in
+  seven layouts plus a table and a non-show, all invented:
+  `build/fixtures/paste/`, `build/paste-tests.cjs`. Decisions taken:
+  - A pasted show is `source: 'paste'`. (The Supabase table's columns are
+    not in this repo; if it constrains `source`, that push fails loudly and
+    the row stays local. The studio keeps `source` in free-form meta.)
+  - Several booth prices: the 10x10 is taken, marked low, and the note names
+    the others; add-ons, corners and electricity never count; with no 10x10
+    among several, the booth fee is "not found" and the note lists them.
+  - Several deadlines: the one labelled final wins; otherwise the earliest,
+    marked low, with the others named. A late-entry deadline is never the
+    deadline. Dates next to fees, payments, refunds, check-in or set-up are
+    never read as a deadline or as show dates.
+  - The notification date goes into the show's notes. The show has no field
+    for it, and the application's `notifiedOn` means "when I was told", a
+    different fact.
+  - A list of shows never gets the page link: one results page is not each
+    show's page. The review says so.
+  - One show under review is a form, one field per line, with the reason
+    for each flag written under it (a phone shows no tooltips, and Gate B
+    says a picked number must be seen). Several shows keep the table.
 
 ---
 

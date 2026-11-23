@@ -93,6 +93,10 @@ fully without any of them, and from `file://` the studio is off entirely.
 - `fit.js` — the scoring model.
 - `pipeline.js` — the application pipeline's arithmetic (spend, expected value).
   DOM-free like `calendar.js`, so a phone app can reuse it.
+- `import.js` / `import-ui.js` — the Import window: paste any show page, email
+  or results list (`readAny`), or a CSV. DOM-free reader; nothing is saved
+  before review. Its contract is `build/fixtures/paste/` — check a change
+  against those raw texts, never by reading the code.
 - `ranker.js` — saved named rankings; compiles to a fit profile, never scores.
   Owns import validation, which is untrusted input.
 - `expenses.js` / `expenses.html` — the expense log, landed cost, break-even,
@@ -156,6 +160,7 @@ node build/assistant-tests.cjs              # the assistant panel, studio answer
 node build/backup-tests.cjs                 # full backup: round trip, refusals, undo
 node build/identity-tests.cjs               # no default person; Account & sync for a newcomer
 node build/first-run-tests.cjs              # empty first run, sample season, old data untouched
+node build/paste-tests.cjs                  # the paste reader vs build/fixtures/paste, then the Import window
 node build/run-suites.cjs                   # all of the above + pwa + studio
 npm ci --prefix qa && npm --prefix qa test  # page audit + qa specs → qa/results/audit.json
 qa/browse open <url>                        # read and drive a page as text (Playwright CLI)

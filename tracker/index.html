@@ -31,11 +31,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
       referrerpolicy="no-referrer">
-<link rel="stylesheet" href="app.css?v=ade55cfd">
+<link rel="stylesheet" href="app.css?v=674f3b2a">
 <!-- The ledger shows the same fit/intel drawer the catalogue does, so it needs
      the same styles. Scoped to .idr/.fitchip/.prov and its own tokens; it adds
      to app.css rather than competing with it. -->
-<link rel="stylesheet" href="intel.css?v=ade55cfd">
+<link rel="stylesheet" href="intel.css?v=674f3b2a">
 <!-- Installable app (PWA): manifest, icons, and pwa.js registers sw.js. -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f5d4f">
@@ -361,6 +361,7 @@
     <div class="form-row">
       <label class="label" for="f_url">Link</label>
       <input class="control" id="f_url" name="url" inputmode="url" placeholder="https://" autocomplete="off">
+      <a class="hint" id="f_urlOpen" target="_blank" rel="noopener noreferrer" hidden>Open the show's page in a new tab ↗</a>
       <div class="err" id="e_url" hidden></div>
     </div>
 
@@ -496,18 +497,21 @@
       <!-- ---- Step 1: source ------------------------------------------- -->
       <div id="impStep1">
         <div class="tabs" role="tablist">
-          <button class="tab" id="impTabPaste" type="button" role="tab" aria-selected="true">Paste from Zapplication</button>
+          <button class="tab" id="impTabPaste" type="button" role="tab" aria-selected="true">Paste a page or email</button>
           <button class="tab" id="impTabCsv" type="button" role="tab" aria-selected="false">CSV file</button>
         </div>
 
         <div id="impPanePaste" role="tabpanel">
           <p class="hint" style="margin:0 0 10px;">
-            Open your Zapp <strong>search results</strong> or <strong>My Applications</strong> page,
-            select the list, copy it, and paste it here. Nothing is fetched from Zapplication —
-            this only reads what you paste.
+            Copy the text of a show's web page, its prospectus, an email or a post about it
+            — or a list of shows from a results page — and paste it here. You check every
+            value before anything is saved. Nothing is fetched: this only reads what you paste.
           </p>
           <textarea class="control imp-paste" id="impPasteText" spellcheck="false"
-                    placeholder="Coconut Grove Arts Festival&#10;Miami, FL&#10;Event Dates: 2/13/2027 - 2/15/2027&#10;Application Deadline: 9/8/2026&#10;Application Fee: $50.00&#10;Booth Fee: $895.00"></textarea>
+                    placeholder="Riverbend Art Fair&#10;June 5–6, 2027 · Riverbend, OH&#10;Application deadline: February 1, 2027&#10;Jury fee: $35&#10;Booth fee: $400 (10x10)"></textarea>
+          <label class="label" for="impPasteLink" style="margin-top:12px;">Link to that page (optional)</label>
+          <input class="control" id="impPasteLink" type="url" inputmode="url" placeholder="https://" autocomplete="off" spellcheck="false">
+          <p class="hint" style="margin:6px 0 0;">Kept on the show so you can open the page again. The app never opens or reads it by itself.</p>
           <p class="hint" id="impParseNote"></p>
         </div>
 
@@ -739,33 +743,33 @@
      sandbox and an unverified hash would break the map outright. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
         referrerpolicy="no-referrer"></script>
-<script src="core.js?v=ade55cfd"></script>
-<script src="pwa.js?v=ade55cfd"></script>
-<script src="studio-sdk.js?v=ade55cfd"></script>
-<script src="studio-store.js?v=ade55cfd"></script>
-<script src="studio-ui.js?v=ade55cfd"></script>
-<script src="studio-assistant.js?v=ade55cfd"></script>
-<script src="nav.js?v=ade55cfd"></script>
-<script src="version.js?v=ade55cfd"></script>
-<script src="map.js?v=ade55cfd"></script>
-<script src="route.js?v=ade55cfd"></script>
+<script src="core.js?v=674f3b2a"></script>
+<script src="pwa.js?v=674f3b2a"></script>
+<script src="studio-sdk.js?v=674f3b2a"></script>
+<script src="studio-store.js?v=674f3b2a"></script>
+<script src="studio-ui.js?v=674f3b2a"></script>
+<script src="studio-assistant.js?v=674f3b2a"></script>
+<script src="nav.js?v=674f3b2a"></script>
+<script src="version.js?v=674f3b2a"></script>
+<script src="map.js?v=674f3b2a"></script>
+<script src="route.js?v=674f3b2a"></script>
 <!-- The fit/intel layer, so a show in the ledger opens the same breakdown
      it does in the catalogue. weather.js and salestax.js are optional to
      intel-ui.js, but without them the drawer silently loses two panels,
      which is worse than carrying two small files. -->
-<script src="fit.js?v=ade55cfd"></script>
-<script src="pipeline.js?v=ade55cfd"></script>
-<script src="intel.js?v=ade55cfd"></script>
-<script src="members.js?v=ade55cfd"></script>
-<script src="weather.js?v=ade55cfd"></script>
-<script src="salestax.js?v=ade55cfd"></script>
-<script src="intel-ui.js?v=ade55cfd"></script>
-<script src="store-supabase.js?v=ade55cfd"></script>
-<script src="import.js?v=ade55cfd"></script>
-<script src="import-ui.js?v=ade55cfd"></script>
-<script src="share.js?v=ade55cfd"></script>
-<script src="share-ui.js?v=ade55cfd"></script>
-<script src="backup.js?v=ade55cfd"></script>
+<script src="fit.js?v=674f3b2a"></script>
+<script src="pipeline.js?v=674f3b2a"></script>
+<script src="intel.js?v=674f3b2a"></script>
+<script src="members.js?v=674f3b2a"></script>
+<script src="weather.js?v=674f3b2a"></script>
+<script src="salestax.js?v=674f3b2a"></script>
+<script src="intel-ui.js?v=674f3b2a"></script>
+<script src="store-supabase.js?v=674f3b2a"></script>
+<script src="import.js?v=674f3b2a"></script>
+<script src="import-ui.js?v=674f3b2a"></script>
+<script src="share.js?v=674f3b2a"></script>
+<script src="share-ui.js?v=674f3b2a"></script>
+<script src="backup.js?v=674f3b2a"></script>
 <script type="module">
 /* ==========================================================================
    1-5. SHARED CORE
@@ -912,6 +916,7 @@ function renderList() {
         '<p style="margin:0 0 14px;">Your season is empty. Start it one of these ways:</p>' +
         '<div class="btn-row" style="flex-wrap:wrap;">' +
         '<a class="btn btn-primary" href="browse.html">Browse the shows</a>' +
+        '<button type="button" class="btn" id="emptyPaste">Paste a show\'s page</button>' +
         '<button type="button" class="btn" id="emptyAdd">Add a show yourself</button>' +
         (local ? '<button type="button" class="btn btn-quiet" id="emptySample">Load a sample season</button>' : '') +
         '</div>' +
@@ -1187,6 +1192,7 @@ function openDrawer(show) {
   $('#f_lat').value = s.lat === null ? '' : s.lat;
   $('#f_lng').value = s.lng === null ? '' : s.lng;
   $('#f_url').value = s.url;
+  paintUrlOpen();
   $('#f_notes').value = s.notes;
   setRating(s.rating, { silent: true });
 
@@ -1937,6 +1943,17 @@ ASTImportUI.init({
 });
 $('#btnImportShows').addEventListener('click', () => ASTImportUI.open());
 
+/* The show's own page, one tap away in a new tab. Only a real web address is
+   offered; the app never fetches it. */
+function paintUrlOpen() {
+  const v = $('#f_url').value.trim();
+  const ok = /^https?:\/\/\S+$/i.test(v);
+  const a = $('#f_urlOpen');
+  a.hidden = !ok;
+  if (ok) a.setAttribute('href', v); else a.removeAttribute('href');
+}
+$('#f_url').addEventListener('input', paintUrlOpen);
+
 /* Phase 5: share and export. The panel reads the same shows the ledger is
    showing (so whichever Store is live) and writes nothing but its own
    preferences. All rendering — card, caption, snippet — is in share.js. */
@@ -1968,6 +1985,7 @@ function renderSampleNote() {
 document.addEventListener('click', async e => {
   const id = e.target && e.target.id;
   if (id === 'emptyAdd') { $('#btnAdd').click(); }
+  else if (id === 'emptyPaste') { ASTImportUI.open(); }
   else if (id === 'emptySample') {
     if (ASTBackup.synced().length) return;
     await window.AST.LocalStore.loadSample();

@@ -1,7 +1,7 @@
 /* ==========================================================================
    Art Show Tracker — import modal (Phase 4)
 
-   Drives the three-step import: choose a source (Zapp paste or CSV), map the
+   Drives the three-step import: choose a source (pasted text or CSV), map the
    columns when the source is delimited, then review and commit. All parsing,
    deduping and geocoding is in tracker/import.js; the markup is in
    tracker/index.html. This file is the wiring between them, exactly as
@@ -93,14 +93,19 @@ window.ASTImportUI = (function () {
 
   function readPaste() {
     var text = $('#impPasteText').value;
-    if (!text.trim()) { note('#impParseNote', 'Paste the text from the Zapp page first.', true); return; }
-    var out = I.parseZapp(text);
-    if (!out.rows.length) {
-      note('#impParseNote', 'Nothing in that text looked like a show. Copy the whole results list — ' +
-           'show name, city, dates and deadline — and try again.', true);
+    var link = $('#impPasteLink').value.trim();
+    if (!text.trim()) { note('#impParseNote', 'Paste the text of the show\'s page or email first.', true); return; }
+    if (link && !/^https?:\/\/\S+$/i.test(link)) {
+      note('#impParseNote', 'The link must be a web address starting with http:// or https:// — or leave it empty.', true);
       return;
     }
-    if (out.table && out.mapping) {
+    var out = I.readAny(text, { url: link });
+    if (out.mode === 'none') {
+      note('#impParseNote', 'Nothing in that text looked like a show. Copy the part that gives the show\'s ' +
+           'name and dates — the deadline and fees too, if they are there — and try again.', true);
+      return;
+    }
+    if (out.mode === 'table') {
       // The paste was a real table: give it the same column mapping a CSV gets.
       ui.table = out.table;
       ui.mapping = out.mapping;
@@ -110,8 +115,13 @@ window.ASTImportUI = (function () {
       return;
     }
     ui.table = null; ui.mapping = null;
+    if (out.mode === 'single') {
+      startReview(out.rows, 'Read one show from the text. Amber cells are guesses or choices — ' +
+        'check them against the page. Empty cells were not in the text.');
+      return;
+    }
     startReview(out.rows, out.rows.length + ' show' + (out.rows.length === 1 ? '' : 's') +
-      ' read from the paste. Anything flagged amber is a guess — fix it here.');
+      ' read from the paste. Anything flagged amber is a guess — fix it here.' + (out.note ? ' ' + out.note : ''));
   }
 
   var csvText = '';
@@ -205,14 +215,15 @@ window.ASTImportUI = (function () {
 
   function confClass(c) { return c.confidence === 'low' ? 'c-low' : c.confidence === 'med' ? 'c-med' : ''; }
 
-  function cellHTML(cand, f) {
+  function cellHTML(cand, f, id) {
     var c = cand.fields[f.key];
     var errs = I.validate(cand);
     var err = errs[f.key];
     var title = (I.CONFIDENCE_LABEL[c.confidence] || '') + (c.note ? ' — ' + c.note : '') + (err ? ' — ' + err : '');
     var common = 'data-key="' + cand.key + '" data-field="' + f.key + '" ' +
       'class="rev-input ' + confClass(c) + (err ? ' is-bad' : '') + '" ' +
-      'style="width:' + f.width + '" title="' + esc(title) + '"' + (err ? ' aria-invalid="true"' : '');
+      (id ? 'id="' + id + '" aria-describedby="' + id + '-why"' : 'style="width:' + f.width + '"') +
+      ' title="' + esc(title) + '"' + (err ? ' aria-invalid="true"' : '');
     if (f.type === 'status') {
       return '<select ' + common + '><option value="">—</option>' +
         A.STATUSES.map(function (s) {
@@ -245,14 +256,62 @@ window.ASTImportUI = (function () {
       (map[cand.geo.state] || '') + '</span>';
   }
 
+  /* One show: a form, one field per line, with the reason for each flag
+     written under it. A tooltip is not enough: a phone never shows one, and
+     a number picked from several must be seen before it is saved (Gate B). */
+  var LONG_LABEL = { state:'State', startDate:'Starts', endDate:'Ends', applyBy:'Apply by',
+    juryFee:'Jury fee ($)', boothFee:'Booth fee ($)', lat:'Latitude', lng:'Longitude', routeNumber:'Stop number' };
+
+  function whyText(cand, key, errs) {
+    var c = cand.fields[key];
+    if (errs[key]) return errs[key];
+    if (c.confidence === 'none') return c.note || 'Not in the text.';
+    if (c.confidence === 'high') return c.note === 'You typed this.' ? '' : (c.note || '');
+    return (I.CONFIDENCE_LABEL[c.confidence] || '') + (c.note ? ': ' + c.note : '.');
+  }
+  function whyClass(cand, key, errs) {
+    var c = cand.fields[key];
+    return 'hint rev-why' + (errs[key] ? ' is-bad-note' : c.confidence === 'low' || c.confidence === 'med' ? ' is-flagged' : '');
+  }
+
+  function renderOne(c) {
+    var errs = I.validate(c);
+    return '<div class="rev-one' + (c.include ? '' : ' is-off') + '" data-row="' + c.key + '">' +
+      '<div class="rev-one-head">' +
+        '<label class="rev-one-tick"><input type="checkbox" class="rev-tick" data-key="' + c.key + '"' +
+          (c.include ? ' checked' : '') + '> Import this show</label>' +
+        '<span class="col-flag">' + flagsHTML(c, errs) + '</span>' +
+      '</div>' +
+      I.FIELDS.map(function (f) {
+        var id = 'rev-' + c.key + '-' + f.key;
+        return '<div class="rev-one-row"><label class="label" for="' + id + '">' + esc(LONG_LABEL[f.key] || f.label) + '</label>' +
+          cellHTML(c, f, id) +
+          '<p class="' + whyClass(c, f.key, errs) + '" id="' + id + '-why" data-why="' + f.key + '">' + esc(whyText(c, f.key, errs)) + '</p></div>';
+      }).join('') +
+      '</div>';
+  }
+
+  function flagsHTML(c, errs) {
+    return dupeHTML(c) + geoHTML(c) +
+      (Object.keys(errs).length ? '<span class="dupe-flag is-bad-flag" title="' +
+        esc(Object.keys(errs).map(function (k) { return errs[k]; }).join(' ')) + '">Needs a fix</span>' : '');
+  }
+
   function renderReview() {
+    // Ticking all, none or only new means nothing with one show.
+    $('#impSelectAll').parentNode.hidden = ui.rows.length === 1;
+    if (ui.rows.length === 1) {
+      $('#impReviewHost').innerHTML = renderOne(ui.rows[0]);
+      paintSummary();
+      return;
+    }
     var head = '<tr><th class="col-tick"><span class="sr">Import</span></th><th class="col-flag">Row</th>' +
       I.FIELDS.map(function (f) { return '<th>' + esc(f.label) + '</th>'; }).join('') + '</tr>';
 
     var body = ui.rows.map(function (c, i) {
       var errs = I.validate(c);
       var bad = Object.keys(errs).length;
-      return '<tr data-key="' + c.key + '"' + (c.include ? '' : ' class="is-off"') + '>' +
+      return '<tr data-row="' + c.key + '"' + (c.include ? '' : ' class="is-off"') + '>' +
         '<td class="col-tick"><input type="checkbox" class="rev-tick" data-key="' + c.key + '"' +
           (c.include ? ' checked' : '') + ' aria-label="Import row ' + (i + 1) + '"></td>' +
         '<td class="col-flag">' + dupeHTML(c) + geoHTML(c) +
@@ -285,7 +344,7 @@ window.ASTImportUI = (function () {
 
   /** Re-paints one row in place, so typing does not rebuild the whole table. */
   function repaintRow(cand) {
-    var tr = $('#impReviewHost tr[data-key="' + cand.key + '"]');
+    var tr = $('#impReviewHost [data-row="' + cand.key + '"]');
     if (!tr) return;
     var errs = I.validate(cand);
     I.FIELDS.forEach(function (f) {
@@ -297,12 +356,12 @@ window.ASTImportUI = (function () {
                  (errs[f.key] ? ' — ' + errs[f.key] : '');
       if (errs[f.key]) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid');
       if (el.value !== c.value) el.value = c.value;
+      var why = tr.querySelector('[data-why="' + f.key + '"]');
+      if (why) { why.className = whyClass(cand, f.key, errs); why.textContent = whyText(cand, f.key, errs); }
     });
     tr.classList.toggle('is-off', !cand.include);
     var flags = tr.querySelector('.col-flag');
-    if (flags) flags.innerHTML = dupeHTML(cand) + geoHTML(cand) +
-      (Object.keys(errs).length ? '<span class="dupe-flag is-bad-flag" title="' +
-        esc(Object.keys(errs).map(function (k) { return errs[k]; }).join(' ')) + '">Needs a fix</span>' : '');
+    if (flags) flags.innerHTML = flagsHTML(cand, errs);
     paintSummary();
   }
 
@@ -447,6 +506,7 @@ window.ASTImportUI = (function () {
     ui.rows = []; ui.fileName = ''; ui.geoRunning = false; ui.geoStop = false;
     csvText = '';
     $('#impPasteText').value = '';
+    $('#impPasteLink').value = '';
     $('#impCsvText').value = '';
     $('#impFile').value = '';
     $('#impFileName').textContent = '';

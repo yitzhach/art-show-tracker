@@ -98,7 +98,7 @@ window.AST = (function () {
       hidden: !!input.hidden,
       notes: input.notes || '',
       url: input.url || '',
-      source: ['manual','zapp_paste','csv','catalogue','sample'].indexOf(input.source) !== -1 ? input.source : 'manual',
+      source: ['manual','zapp_paste','paste','csv','catalogue','sample'].indexOf(input.source) !== -1 ? input.source : 'manual',
       /* Which catalogue record this came from, so All shows can tell you it
          is already in the ledger without matching on name. */
       catalogueId: input.catalogueId || '',

@@ -1,0 +1,9 @@
+Event Name	Lakeside Pottery & Fine Craft Show
+Event Start Date	05/08/2027
+Event End Date	05/09/2027
+Location	Brannock Commons, Willow Creek, GA 30000
+Entry Deadline	01/15/2027
+Jury Fee	$30.00
+Booth Price	$350.00
+Website	https://example.com/lakeside-show
+Notification Date	02/12/2027
