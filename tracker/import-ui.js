@@ -528,6 +528,35 @@ window.ASTImportUI = (function () {
     $('#impPasteText').focus();
   }
 
+  /**
+   * A page shared to the installed app from another app (plan B3). Android
+   * browsers send the page's title and link, and the text only when the
+   * artist selected some first. It lands in the paste box to be checked:
+   * nothing is read or saved until the artist asks.
+   */
+  function openShared(shared) {
+    shared = shared || {};
+    var safe = function (u) { u = String(u || '').trim(); return /^https?:\/\/\S+$/i.test(u) ? u : ''; };
+    var text = String(shared.text || '');
+    var link = safe(shared.url);
+    if (!link) {
+      var inText = /https?:\/\/\S+/i.exec(text);
+      if (inText) { link = safe(inText[0]); text = text.replace(inText[0], ''); }
+    } else {
+      text = text.split(link).join('');
+    }
+    var title = String(shared.title || '').trim();
+    var body = text.trim();
+    open();
+    $('#impPasteText').value = [title && body.indexOf(title) === -1 ? title : '', body].filter(Boolean).join('\n');
+    $('#impPasteLink').value = link;
+    note('#impParseNote', body.length < 80
+      ? 'Your browser sent the page\'s title and link, not its text. To read the dates and fees, open the page, ' +
+        'select the part that gives them, copy it, and paste it into the box above.'
+      : 'Shared from another app. Check the text above, then choose "Read the text".');
+    $('#impNext').focus();
+  }
+
   function close() {
     ui.geoStop = true;
     $('#importModal').hidden = true;
@@ -639,7 +668,7 @@ window.ASTImportUI = (function () {
   }
 
   return {
-    init: init, open: open, close: close, isOpen: isOpen,
+    init: init, open: open, openShared: openShared, close: close, isOpen: isOpen,
     _ui: ui                 // for the test harness only
   };
 })();

@@ -18,7 +18,7 @@ at a checkpoint or at something on "Still Isaac's".
 | Phase | What | State |
 |---|---|---|
 | A | Safe for anyone, no account needed | **done 2026-11-23** — A1 to A5 shipped, A6 mostly (two small items in "Pick up here"). Checkpoint 1 done 2026-11-14 |
-| B | Add a show from anywhere | **in progress** — B1 and B2 shipped 2026-11-23; next B3 |
+| B | Add a show from anywhere | **in progress** — B1, B2, B3 shipped 2026-11-23; next B4 |
 | C | Demo-ready | not started |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
@@ -43,7 +43,7 @@ or debriefs yet; his share settings hold his name.
 `build/first-run-tests.cjs` holds a fixture shaped like that season
 (invented names) and checks it comes through every page byte-for-byte.
 
-**Next: B3 (from a phone), then B4, then B5.** B1 and B2 shipped: see
+**Next: B4 (freshness), then B5.** B1, B2 and B3 shipped: see
 Phase B's "Done so far". The paste reader's contract is the hand-written
 texts in `build/fixtures/paste/` and `expected.json` beside them; a change
 to the reader is checked against those raw texts (`build/paste-tests.cjs`).
@@ -277,6 +277,15 @@ Done so far:
   - One show under review is a form, one field per line, with the reason
     for each flag written under it (a phone shows no tooltips, and Gate B
     says a picked number must be seen). Several shows keep the table.
+- **B3, 2026-11-23.** The installed app is a share target
+  (`manifest.webmanifest`, GET to `index.html` with `share_title`,
+  `share_text`, `share_url`). A share opens the paste box filled in, takes
+  the query off the address at once, and reads or saves nothing until the
+  artist presses "Read the text". Android browsers usually send only the
+  title and link, so the box says how to copy the page's text in. A shared
+  link that is not http(s) is dropped. The paste tab tells iPhone users
+  plainly that web apps cannot receive shares there. Tests in
+  `build/paste-tests.cjs`.
 
 ---
 
