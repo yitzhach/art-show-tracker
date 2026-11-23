@@ -19,7 +19,7 @@ at a checkpoint or at something on "Still Isaac's".
 |---|---|---|
 | A | Safe for anyone, no account needed | **done 2026-11-23** — A1 to A5 shipped, A6 mostly (two small items in "Pick up here"). Checkpoint 1 done 2026-11-14 |
 | B | Add a show from anywhere | **done 2026-11-23** — B1 to B4 shipped, B5 designed (`docs/offer-back-design.md`) |
-| C | Demo-ready | **next** — not started |
+| C | Demo-ready | **in progress** — C2 started (one catalogue count) |
 | D | Accounts, backup and sync | not started — opens with checkpoint 3 |
 | E | Sharing and the common catalogue | not started |
 | F | Paid tier | not started |
@@ -30,14 +30,14 @@ same pull request as the work.
 
 ---
 
-## Pick up here (written 2026-11-23)
+## Pick up here (written 2026-11-23, second session)
 
-**Phases A and B are done.** A new browser starts empty (A2). Any show's
-page, prospectus, post or email can be pasted in, or shared from an Android
-phone, and is read into the review with each value's confidence (B1–B3).
-Facts show when they were captured and the ledger asks for a look at the
-show's page near a deadline (B4). Offering facts back is designed, not built
-(B5, `docs/offer-back-design.md`).
+**Phases A and B are done; Phase C has started.** A new browser starts
+empty (A2). Any show's page, prospectus, post or email can be pasted in, or
+shared from an Android phone, and is read into the review with each value's
+confidence (B1–B3). Facts show when they were captured (B4). Offering facts
+back is designed, not built (B5, `docs/offer-back-design.md`). The catalogue
+now states one count, one way (first piece of C2).
 
 What the owner's backup (2026-11-14) showed, worth knowing before touching
 his data: he is signed in to the studio (shows and sales come from the
@@ -46,13 +46,16 @@ or debriefs yet; his share settings hold his name.
 `build/first-run-tests.cjs` holds a fixture shaped like that season
 (invented names) and checks it comes through every page byte-for-byte.
 
-**Next: Phase C, in order from C1.** C1 (the first five minutes) and C2
-(phone first) are the bulk of it; Gate C is a five-minute run on a phone,
-and its end is **checkpoint 2** (Isaac runs the demo on his own phone and
+**Next: C1 (the first five minutes), then the rest of C2.** C1: a new
+browser lands on a welcome (two sentences, two questions: what you make,
+what it sells for) and drops into the ranked list; a returning browser goes
+straight to the ledger. Rest of C2: the catalogue's filters collapse on a
+phone so the first show is on the first screen; the ledger header keeps the
+menu and "Add show", the rest moves into the menu. Then C3 … C7 in order.
+Gate C ends at **checkpoint 2** (Isaac runs the demo on his own phone and
 decides the name and domain). The paste reader's contract is
-`build/fixtures/paste/` (`build/paste-tests.cjs`): check any change to it
-against those raw texts. Phase W stays parked until the owner answers
-W-1 … W-6.
+`build/fixtures/paste/` (`build/paste-tests.cjs`). Phase W stays parked
+until the owner answers W-1 … W-6.
 
 Small things still open from Phase A, none blocking:
 
@@ -361,7 +364,12 @@ ledger → add an outside show by paste → see a calendar clash → log a sale 
 see whether the show paid. Site QA clean at phone, desktop and dark.
 → **Checkpoint 2.**
 
-Done so far: —
+Done so far:
+
+- C2, part: the catalogue states one count, one way. The header's separate
+  "237 shows" is gone (it also cost header room on a phone); the line above
+  the list reads "Showing 135 of 240 shows (237 in the catalogue, 3 added by
+  you)", the split only when you have added shows. 2026-11-23.
 
 ---
 
